@@ -115,3 +115,50 @@ Stage Summary:
   * Account dropdown: shows concierge + matches links
 - Key fix: Radix Tabs replaced with native buttons everywhere (MatchesPage, TopicTabs). Tab switching now works in WASM build.
 - Components ready to wire (LetterSummary, AIReviewInsight, NLSearchBar, AIActionButton) — their host pages (letter reader, host applications, gatherings listing, new gathering form) need rebuilding from previous phases but the AI components themselves are complete and tested.
+
+---
+Task ID: 3C
+Agent: orchestrator (main)
+Task: Phase 3C — Recovery & Full AI Integration (audit + rebuild + wire).
+
+Work Log:
+- Audited current project state: found 4 route pages (homepage, dashboard/concierge, dashboard/matches, layout) and many missing pages from Phases 1A-2B.
+- Fixed infrastructure: shifted gathering dates to future (Aug-Oct 2026), added userId to Host type + @mohammed_poet host, fixed navigation.ts to point to real routes, fixed SiteFooter to use root translations + i18n Link.
+- Created missing lib files: host-helpers.ts, notifications-store.ts, host-gatherings-store.ts, seed-applications.ts. Updated applications-store.ts with seed data + getByHost().
+- Created missing API routes: /api/v1/match-score (POST), /api/v1/recommendations (GET).
+- Created missing components: StatusBadge, TopicCard, StepIndicator, LetterContent (react-markdown renderer), ApplyForm (4-step), DashboardHome, ApplicationsList, HostSidebar, HostGuard, HostGatherings, HostApplications (with AIReviewInsight), HostAnalytics (4 recharts), ApplicationReviewCard (with AIReviewInsight + real matchScore), NewGatheringForm (5-step with AIActionButton for enhance + suggest), GatheringsClient (with NLSearchBar).
+- Created all missing route pages: gatherings listing+detail, hosts listing+detail, topics listing+detail, letters archive+reader, about, faq, not-found, dashboard layout+home+applications, host dashboard (layout+sidebar+guard+gatherings+applications+analytics+messages+new+redirect), apply form+success.
+- Fixed missing exports: checkPrayerConflict in prayer-times.ts, formatDateRange in format.ts, getDemoUserById in demo-users.ts.
+- Added all missing translation namespaces: notFound, breadcrumbs, host (nav/gatherings/applications/analytics/messages/newGathering), notifications, applications, application_form.
+- Wired AI components: RecommendationsSection in homepage (logged-in only), NLSearchBar in gatherings listing, SimilarAttendeesPreview in gathering detail, LetterSummary in letters reader, AIReviewInsight in ApplicationReviewCard, AIActionButton in NewGatheringForm step 4 (enhance description + suggest questions).
+- Wired matching components: MatchScoreRing in ApplicationCTA (not rebuilt but the component exists), real computeMatchScore in ApplicationReviewCard + applications-store submit.
+- Fixed Radix Tabs → native buttons in MatchesPage + TopicTabs.
+- Fixed SiteFooter to use root useTranslations() + i18n Link.
+
+Stage Summary:
+- Phase 3C COMPLETE. lint=0 errors. dev.log clean. All 24 routes return 200.
+- Route audit results:
+  * / → 200 (AR, RTL, with RecommendationsSection for logged-in)
+  * /gatherings → 200 (with NLSearchBar)
+  * /gatherings/[slug] → 200 (with SimilarAttendeesPreview + prayer badge + apply button)
+  * /hosts → 200, /hosts/[handle] → 200
+  * /topics → 200, /topics/[slug] → 200 (native tabs)
+  * /letters → 200, /letters/[slug] → 200 (with LetterSummary)
+  * /about → 200, /faq → 200
+  * /dashboard → 200, /dashboard/applications → 200, /dashboard/matches → 200 (native tabs)
+  * /dashboard/concierge → 200 (ConciergeChat with 8 suggested questions)
+  * /dashboard/host/* → all 200 (gatherings/applications/analytics/messages/new)
+  * /gatherings/apply/[slug] → 200
+  * /api/v1/health → 200, /api/v1/ai/health → 200
+  * /api/v1/match-score → 200, /api/v1/recommendations → 200
+- Agent Browser verified:
+  * Homepage: recommendations visible (logged-in), 4 gathering links + 4 host links + 6 topic links + 4 letter links
+  * Gatherings listing: NLSearchBar visible
+  * Gathering detail: SimilarAttendeesPreview + prayer badge + apply button
+  * Letters reader: LetterSummary/AI summary area visible
+  * Topics detail: 8 native tab buttons
+  * Matches page: 5 native tab buttons
+  * ConciergeChat: title + 8 suggested questions
+  * Host applications: AIReviewInsight visible
+  * New gathering form: 6 step circles (5 steps + back arrow)
+  * All 4 API routes return 200

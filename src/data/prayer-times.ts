@@ -65,3 +65,19 @@ export function getPrayerTimeForDate(date: Date): PrayerDay | undefined {
 }
 
 prayerTimes.forEach((d) => prayerDaySchema.parse(d));
+
+export function checkPrayerConflict(start: Date, end: Date): { conflict: boolean; prayer?: string } {
+  const day = getPrayerTimeForDate(start);
+  if (!day) return { conflict: false };
+  const prayers = [
+    { name: 'fajr', time: day.fajr }, { name: 'dhuhr', time: day.dhuhr },
+    { name: 'asr', time: day.asr }, { name: 'maghrib', time: day.maghrib }, { name: 'isha', time: day.isha },
+  ];
+  for (const p of prayers) {
+    const [h, m] = p.time.split(':').map(Number);
+    const prayerTime = new Date(start); prayerTime.setHours(h, m, 0, 0);
+    const prayerEnd = new Date(prayerTime.getTime() + 30 * 60 * 1000);
+    if (start <= prayerEnd && end >= prayerTime) return { conflict: true, prayer: p.name };
+  }
+  return { conflict: false };
+}

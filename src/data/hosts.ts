@@ -85,6 +85,7 @@ export const hosts: Host[] = [
   },
   {
     handle: '@mohammed_poet',
+    userId: 'user-khaled',
     displayName: {
       ar: 'محمد الفرج',
       en: 'Mohammed Al-Farraj',

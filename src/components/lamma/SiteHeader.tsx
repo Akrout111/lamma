@@ -41,7 +41,7 @@ export function SiteHeader() {
             <AccountDropdown />
             <Sheet open={open} onOpenChange={setOpen}>
               <SheetTrigger asChild><Button variant="ghost" size="icon" className="md:hidden" aria-label={t('openMenu')}><Menu className="h-5 w-5" /></Button></SheetTrigger>
-              <SheetContent side="end" className="w-[18rem] bg-paper">
+              <SheetContent side="right" className="w-[18rem] bg-paper">
                 <SheetHeader><SheetTitle className="text-start font-display text-xl text-ink">لَمَّة</SheetTitle></SheetHeader>
                 <nav className="mt-6 flex flex-col gap-1 px-4" aria-label="Mobile primary">
                   {mainNav.map((item) => (<Link key={item.labelKey} href={item.href} onClick={() => setOpen(false)} className="rounded-md px-3 py-3 text-base font-medium text-ink/80 transition-colors hover:bg-secondary hover:text-ink">{t(item.labelKey.replace('nav.', '') as 'gatherings')}</Link>))}

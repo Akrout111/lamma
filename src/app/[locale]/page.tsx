@@ -1,6 +1,6 @@
 import { setRequestLocale, getTranslations } from 'next-intl/server';
 import Image from 'next/image';
-import Link from 'next/link';
+import { Link } from '@/i18n/routing';
 import type { Locale } from '@/i18n/routing';
 import { Container } from '@/components/lamma/Container';
 import { GatheringCard } from '@/components/lamma/GatheringCard';
@@ -9,6 +9,7 @@ import { LetterCard } from '@/components/lamma/LetterCard';
 import { TopicPill } from '@/components/lamma/TopicPill';
 import { PrayerTimeBadge } from '@/components/lamma/PrayerTimeBadge';
 import { NewsletterSignup } from '@/components/lamma/NewsletterSignup';
+import { RecommendationsSection } from '@/components/lamma/matching/RecommendationsSection';
 import { Button } from '@/components/ui/button';
 import { letters } from '@/data/letters';
 import { gatherings, upcomingGatherings } from '@/data/gatherings';
@@ -55,7 +56,7 @@ export default async function HomePage({ params }: Props) {
             </blockquote>
             <div className="mt-8 flex flex-wrap items-center gap-4">
               <Button asChild className="gap-1.5 bg-clay text-primary-foreground hover:bg-clay/90">
-                <Link href={`/#letters`}>
+                <Link href={`/letters/${heroLetter.slug}`}>
                   {t('readFullLetter')}
                   <Arrow className="h-4 w-4" />
                 </Link>
@@ -72,7 +73,7 @@ export default async function HomePage({ params }: Props) {
           {/* Hero letter cover */}
           <div className="lg:col-span-5">
             <Link
-              href="/#letters"
+              href={`/letters/${heroLetter.slug}`}
               className="group relative block aspect-[4/5] overflow-hidden rounded-2xl bg-secondary shadow-[var(--shadow-card)] ring-1 ring-border/60"
             >
               <Image
@@ -109,13 +110,15 @@ export default async function HomePage({ params }: Props) {
               </h2>
             </div>
             <Button asChild variant="ghost" className="gap-1.5 text-clay">
-              <Link href="/#gatherings">
+              <Link href="/gatherings">
                 {tS('upcomingGatherings')}
                 <Arrow className="h-4 w-4" />
               </Link>
             </Button>
           </div>
-          <GatheringCard gathering={featured} variant="featured" />
+          <Link href={`/gatherings/${featured.slug}`} className="block focus:outline-none focus-visible:ring-2 focus-visible:ring-clay/50 rounded-2xl">
+            <GatheringCard gathering={featured} variant="featured" />
+          </Link>
           <div className="mt-3 flex items-center gap-2 text-xs text-stone">
             <PrayerTimeBadge />
             <span>{/* TODO: build full section in Phase 1 */}</span>
@@ -141,11 +144,18 @@ export default async function HomePage({ params }: Props) {
           </div>
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {upcomingSlice.map((g) => (
-              <GatheringCard key={g.slug} gathering={g} />
+              <Link key={g.slug} href={`/gatherings/${g.slug}`} className="block focus:outline-none focus-visible:ring-2 focus-visible:ring-clay/50 rounded-2xl">
+                <GatheringCard gathering={g} />
+              </Link>
             ))}
           </div>
         </Container>
       </section>
+
+      {/* ============================================================
+          RECOMMENDATIONS (auth-gated — visible only to logged-in users)
+         ============================================================ */}
+      <RecommendationsSection />
 
       {/* ============================================================
           TOPICS (placeholder — 6 editorial topic pills)
@@ -165,7 +175,7 @@ export default async function HomePage({ params }: Props) {
             {topics.map((topic) => (
               <Link
                 key={topic.slug}
-                href={`/#topics`}
+                href={`/topics/${topic.slug}`}
                 className="group relative flex aspect-[4/3] flex-col justify-between overflow-hidden rounded-2xl bg-secondary p-4 ring-1 ring-border/60 transition-all hover:shadow-[var(--shadow-card)]"
               >
                 <Image
@@ -206,7 +216,9 @@ export default async function HomePage({ params }: Props) {
           </div>
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
             {hostsSlice.map((h) => (
-              <HostCard key={h.handle} host={h} />
+              <Link key={h.handle} href={`/hosts/${h.handle.replace('@', '')}`} className="block focus:outline-none focus-visible:ring-2 focus-visible:ring-clay/50 rounded-2xl">
+                <HostCard host={h} />
+              </Link>
             ))}
           </div>
         </Container>
@@ -228,7 +240,9 @@ export default async function HomePage({ params }: Props) {
           </div>
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
             {lettersSlice.map((x) => (
-              <LetterCard key={x.slug} letter={x} />
+              <Link key={x.slug} href={`/letters/${x.slug}`} className="block focus:outline-none focus-visible:ring-2 focus-visible:ring-clay/50 rounded-2xl">
+                <LetterCard letter={x} />
+              </Link>
             ))}
           </div>
         </Container>

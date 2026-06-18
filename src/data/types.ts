@@ -83,6 +83,7 @@ export type Topic = z.infer<typeof topicSchema>;
 
 export const hostSchema = z.object({
   handle: z.string().regex(/^@/),
+  userId: z.string().optional(),
   displayName: localizedStringSchema,
   bio: localizedStringSchema,
   avatarUrl: z.string().min(1),

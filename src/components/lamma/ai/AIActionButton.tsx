@@ -11,10 +11,19 @@ interface Props {
   onResult: (result: string) => void;
   label: string;
   variant?: 'default' | 'outline';
+  /**
+   * Optional custom extractor — receives the parsed JSON response and
+   * returns the string to pass to onResult, or undefined to signal
+   * "no result". Defaults to `data.result`.
+   *
+   * Use this when the endpoint returns a different shape, e.g.
+   * `data.questions` (an array of strings joined with `\n\n`).
+   */
+  extract?: (data: Record<string, unknown>) => string | undefined;
 }
 
 /** Generic AI action button — calls an AI API endpoint and passes the result to onResult. */
-export function AIActionButton({ endpoint, payload, onResult, label, variant = 'outline' }: Props) {
+export function AIActionButton({ endpoint, payload, onResult, label, variant = 'outline', extract }: Props) {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const t = useTranslations('ai');
@@ -29,10 +38,11 @@ export function AIActionButton({ endpoint, payload, onResult, label, variant = '
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
-      const data = await res.json();
+      const data = (await res.json()) as Record<string, unknown>;
 
-      if (data.success && data.result) {
-        onResult(data.result);
+      const result = extract ? extract(data) : (typeof data.result === 'string' ? data.result : undefined);
+      if (data.success && result) {
+        onResult(result);
         setSuccess(true);
         setTimeout(() => setSuccess(false), 2000);
       }
