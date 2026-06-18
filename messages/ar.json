@@ -1,0 +1,154 @@
+{
+  "meta": {
+    "title": "لَمَّة — تجمعات حميمية كويتية",
+    "description": "منصة كويتية لتجمعات حميمية مُنتقاة. نتعامل مع الفعاليات كحوارٍ، لا كمعاملة.",
+    "localeName": "العربية",
+    "localeSwitchTo": "English"
+  },
+  "nav": {
+    "gatherings": "تجمعات",
+    "hosts": "أصحاب",
+    "topics": "مواضيع",
+    "letters": "رسائل",
+    "account": "حسابي",
+    "openMenu": "افتح القائمة",
+    "closeMenu": "أغلق القائمة",
+    "switchLocale": "تبديل اللغة"
+  },
+  "footer": {
+    "titles": {
+      "about": "عن لَمَّة",
+      "help": "المساعدة",
+      "contact": "تواصل"
+    },
+    "about": {
+      "story": "قصتنا",
+      "manifesto": "البيان",
+      "team": "الفريق"
+    },
+    "help": {
+      "faq": "أسئلة شائعة",
+      "apply": "كيف أنضمّ؟",
+      "host": "كن صاحب لمة",
+      "conduct": "ميثاق السلوك"
+    },
+    "contact": {
+      "email": "hello@lamma.kw",
+      "instagram": "إنستغرام",
+      "x": "إكس"
+    },
+    "rights": "© 2026 لَمَّة. صُنع بحب في الكويت."
+  },
+  "hero": {
+    "eyebrow": "رسالة من لمة",
+    "readFullLetter": "اقرأ الرسالة كاملة",
+    "byAuthor": "بقلم",
+    "featuredGathering": "اللمة المميّزة",
+    "applyNow": "قدّم الآن",
+    "viewGathering": "تفاصيل اللمة"
+  },
+  "sections": {
+    "upcomingGatherings": "اللمات القادمة",
+    "upcomingGatheringsHint": "باب التقديم مفتوح الآن",
+    "hosts": "أصحاب التجمعات",
+    "hostsHint": "من يجمعنا",
+    "topics": "المواضيع التحريرية",
+    "topicsHint": "ستّ محاور تنتظم حولها كل لمة",
+    "letters": "رسائل من لمة",
+    "lettersHint": "ما يُكتب بعد أن تنفضّ اللمة",
+    "newsletter": "نشرة لمة",
+    "newsletterTitle": "رسالةٌ واحدة في الشهر. لا ضجيج.",
+    "newsletterDesc": "نخبرك فيها باللمات القادمة، وبأطروحةٍ تحريرية واحدة تستحقّ القراءة. لا إعلانات، لا سبام.",
+    "newsletterPlaceholder": "بريدك الإلكتروني",
+    "newsletterSubscribe": "اشترك",
+    "newsletterSuccess": "شكراً. ستصلك الرسالة القادمة قريباً."
+  },
+  "gatherings": {
+    "capacity": "السعة",
+    "seatsFilled": "مقعد مُعبّر",
+    "seatsFilled_plural": "مقاعد مُعبّرة",
+    "of": "من",
+    "free": "مجاني",
+    "priceFrom": "يبدأ من",
+    "kwd": "د.ك",
+    "applicationDeadline": "يغلق التقديم",
+    "startsAt": "يبدأ",
+    "viewAll": "كل اللمات",
+    "viewGathering": "تفاصيل اللمة",
+    "prayerAware": "مراعاة الصلاة",
+    "prayerAwareDesc": "تُقام اللمة بعد صلاة العشاء مباشرةً"
+  },
+  "hosts": {
+    "verified": "موثّق",
+    "gatheringsHosted": "لمة استضافها",
+    "totalAttendees": "ضيف",
+    "avgRating": "التقييم",
+    "responseTime": "يستجيب خلال",
+    "hours": "ساعة",
+    "viewProfile": "الملف الكامل"
+  },
+  "topics": {
+    "explore": "استكشف الموضوع",
+    "gatheringsUnder": "لمة تحت هذا الموضوع"
+  },
+  "letters": {
+    "readMore": "أكمل القراءة",
+    "readTime": "دقائق قراءة",
+    "minRead": "د قراءة",
+    "publishedOn": "نُشر",
+    "byAuthor": "بقلم"
+  },
+  "prayer": {
+    "label": "مواقيت الصلاة",
+    "next": "الصلاة القادمة",
+    "in": "بعد",
+    "fajr": "الفجر",
+    "sunrise": "الشروق",
+    "dhuhr": "الظهر",
+    "asr": "العصر",
+    "maghrib": "المغرب",
+    "isha": "العشاء",
+    "awareNote": "هذه اللمة تراعي مواقيت الصلاة"
+  },
+  "formats": {
+    "MEN_ONLY": "رجال فقط",
+    "WOMEN_ONLY": "نساء فقط",
+    "FAMILY": "عوائل",
+    "MIXED": "مختلطة"
+  },
+  "membership": {
+    "NEWCOMER": "قادم جديد",
+    "REGULAR": "عضو دائم",
+    "CURATOR": "منسّق",
+    "HOST": "صاحب لمة"
+  },
+  "application_status": {
+    "PENDING": "قيد المراجعة",
+    "APPROVED": "مقبول",
+    "REJECTED": "مرفوض",
+    "WAITLISTED": "قائمة الانتظار",
+    "CANCELLED": "ملغى"
+  },
+  "status": {
+    "DRAFT": "مسودّة",
+    "PUBLISHED": "منشور",
+    "APPLICATIONS_OPEN": "التقديم مفتوح",
+    "APPLICATIONS_CLOSED": "التقديم مغلق",
+    "IN_PROGRESS": "جارية الآن",
+    "COMPLETED": "اكتملت",
+    "CANCELLED": "ملغاة"
+  },
+  "common": {
+    "loading": "جارٍ التحميل…",
+    "error": "حدث خطأ ما",
+    "retry": "إعادة المحاولة",
+    "back": "رجوع",
+    "more": "المزيد",
+    "soon": "قريباً",
+    "placeholder": "هذا القسم يُبنى في مرحلة قادمة"
+  },
+  "language": {
+    "ar": "العربية",
+    "en": "English"
+  }
+}

@@ -1,0 +1,618 @@
+     1→/* eslint-disable no-console */
+     2→/**
+     3→ * generate-letters.ts
+     4→ *
+     5→ * Generates the 3 long-form bilingual editorial Letters for Lamma Phase 0.
+     6→ * Uses z-ai-web-dev-sdk LLM to draft body content in both Arabic and English.
+     7→ *
+     8→ * Because the LLM consistently returns ~1000 words per call, we generate each
+     9→ * essay in TWO parts (opening movement + continuation movement) per language
+    10→ * and concatenate them. Parts for the same letter run in parallel to keep
+    11→ * total wall-clock time low.
+    12→ *
+    13→ * Run: `bun run scripts/generate-letters.ts`
+    14→ */
+    15→
+    16→import ZAI from 'z-ai-web-dev-sdk';
+    17→import { writeFileSync, mkdirSync, readFileSync, existsSync } from 'node:fs';
+    18→import { dirname, join } from 'node:path';
+    19→import { fileURLToPath } from 'node:url';
+    20→
+    21→/* -------------------------------------------------------------------------- */
+    22→/*  Types                                                                     */
+    23→/* -------------------------------------------------------------------------- */
+    24→
+    25→interface LetterSpec {
+    26→  slug: string;
+    27→  title: { ar: string; en: string };
+    28→  subtitle: { ar: string; en: string };
+    29→  coverImageUrl: string;
+    30→  galleryUrls: string[];
+    31→  readTimeMinutes: number;
+    32→  publishedAt: string;
+    33→  topicSlug: string;
+    34→  authorHostHandle: string;
+    35→  gatheringSlug: string | null;
+    36→  theme: { ar: string; en: string };
+    37→  imagePaths: string[];
+    38→}
+    39→
+    40→/* -------------------------------------------------------------------------- */
+    41→/*  Letter specs                                                              */
+    42→/* -------------------------------------------------------------------------- */
+    43→
+    44→const letterSpecs: LetterSpec[] = [
+    45→  {
+    46→    slug: 'rhythm-echoes',
+    47→    title: {
+    48→      ar: 'أصداء الإيقاع: ليلةٌ ما زالت تدقّ',
+    49→      en: 'Echoes of Rhythm: A Night Still Beating',
+    50→    },
+    51→    subtitle: {
+    52→      ar: 'عن اللمة الثامنة — أمسية الإيقاع الكويتي التي اختتمت، وتركت في أيدينا انتظاراً.',
+    53→      en: 'On the eighth gathering — the Kuwaiti rhythm evening that ended, leaving our hands waiting.',
+    54→    },
+    55→    coverImageUrl: '/images/letters/letter-rhythm-echoes.jpg',
+    56→    galleryUrls: ['/images/gatherings/voices-rhythm-music.jpg'],
+    57→    readTimeMinutes: 11,
+    58→    publishedAt: '2025-12-02T08:00:00+03:00',
+    59→    topicSlug: 'new-voices',
+    60→    authorHostHandle: '@mohammed_poet',
+    61→    gatheringSlug: 'voices-rhythm-music',
+    62→    theme: {
+    63→      ar: 'مقالٌ تأمليّ عن أمسية الإيقاع والإيقاع الكويتي التي اختتمت. اكتب عن الصمت الذي سبق النقرة الأولى، عن الطريقة التي يصير بها حلقةٌ من الغرباء جسداً واحداً يتنفّس بالإيقاع، عن صوت المرواس تحديداً وكيف يقفز بين الأيدي، عن الشاي الذي برد لأن أحداً لم يرد أن يكسر التعويذة، وعن المشي عائدين إلى البيت حيث بدت المدينة وكأنها أُعيد ضبطها على نغمٍ آخر.',
+    64→      en: 'A reflective essay on the completed Kuwaiti rhythm and percussion evening. Write about the silence before the first beat, the way a circle of strangers becomes a single breathing body through rhythm, the specific sound of the mirwas drum and how it leaps between hands, the tea that went cold because no one wanted to break the spell, and the walk home where the city felt re-tuned to a different key.',
+    65→    },
+    66→    imagePaths: [
+    67→      '/images/gatherings/voices-rhythm-music.jpg',
+    68→      '/images/letters/letter-rhythm-echoes.jpg',
+    69→      '/images/topics/new-voices.jpg',
+    70→    ],
+    71→  },
+    72→  {
+    73→    slug: 'the-lebanese-table',
+    74→    title: {
+    75→      ar: 'المائدة اللبنانية: ذاكرةٌ على طبق',
+    76→      en: 'The Lebanese Table: Memory on a Plate',
+    77→    },
+    78→    subtitle: {
+    79→      ar: 'عن لمةٍ خيالية سابقة في موضوع حكايات الطعام — مائدة لبنانية امتدّت من بيروت إلى الكويت.',
+    80→      en: 'On an imagined past gathering in the Food Stories topic — a Lebanese table that stretched from Beirut to Kuwait.',
+    81→    },
+    82→    coverImageUrl: '/images/letters/letter-lebanese-table.jpg',
+    83→    galleryUrls: ['/images/topics/food-stories.jpg'],
+    84→    readTimeMinutes: 9,
+    85→    publishedAt: '2025-11-18T08:00:00+03:00',
+    86→    topicSlug: 'food-stories',
+    87→    authorHostHandle: '@amal_sudani_chef',
+    88→    gatheringSlug: null,
+    89→    theme: {
+    90→      ar: 'مقالٌ عن لمةٍ لبنانيةٍ خياليةٍ سابقة أُقيمت في شقةٍ بالسالمية. اكتب عن جغرافيا مائدة المازّة (ترتيب الأطباق كأنها جملةٌ تُحكى من اليمين إلى اليسار)، عن دفتر وصفات جدّة المضيفة المكتوب بخط اليد الذي عبر ثلاثة حدود حتى استقر في الكويت، عن الجدل حول ما إذا كان التبولة سلطةً أم طريقةً في الرؤية، وعن كيف يمكن لوجبةٍ أن تكون فعلاً رفضٍ ضد التهجير.',
+    91→      en: 'An essay on a fictional, past Lebanese mezze gathering hosted in a Salmiya apartment. Write about the geography of a mezze table (the order of dishes as a kind of sentence, read from right to left), the host\'s grandmother\'s handwritten recipe book that traveled across three borders before settling in Kuwait, the debate over whether tabbouleh is a salad or a way of seeing, and how a meal can be an act of refusal against displacement.',
+    92→    },
+    93→    imagePaths: [
+    94→      '/images/topics/food-stories.jpg',
+    95→      '/images/letters/letter-lebanese-table.jpg',
+    96→    ],
+    97→  },
+    98→  {
+    99→    slug: 'old-salmiya-walking',
+   100→    title: {
+   101→      ar: 'السالمية القديمة: مشيٌ ضد النسيان',
+   102→      en: 'Old Salmiya: A Walk Against Forgetting',
+   103→    },
+   104→    subtitle: {
+   105→      ar: 'عن لمةٍ خيالية سابقة في موضوع ذاكرة المكان — جولةٍ مشية في شوارع السالمية التي لم تعد.',
+   106→      en: 'On an imagined past gathering in the Memory of Place topic — a walking tour through Salmiya streets that no longer are.',
+   107→    },
+   108→    coverImageUrl: '/images/letters/letter-old-salmiya.jpg',
+   109→    galleryUrls: ['/images/topics/memory-of-place.jpg'],
+   110→    readTimeMinutes: 10,
+   111→    publishedAt: '2025-10-30T08:00:00+03:00',
+   112→    topicSlug: 'memory-of-place',
+   113→    authorHostHandle: '@abdullah_kuwaiti_historian',
+   114→    gatheringSlug: null,
+   115→    theme: {
+   116→      ar: 'مقالٌ عن لمةٍ مشيةٍ خياليةٍ سابقة في شوارع السالمية القديمة. اكتب عن التآكل البطيء لروح الحيّ، عن الزاوية المحددة التي كان فيها مكتبةٌ شهيرةٌ ولم تعد، عن ممارسة المشي كفعلِ تذكّرٍ لا انتقال، عن التوتّر بين الحفظ والتقدّم، وعن الفعل الصغير المتمثّل في تدوين ما رأيته قبل أن يختفي.',
+   117→      en: 'An essay on a fictional, past walking gathering through old Salmiya. Write about the slow erosion of a neighbourhood\'s character, the specific corner where a famous bookshop used to be and is no longer, the practice of walking as remembering rather than moving, the tension between preservation and progress, and the small act of writing down what you saw before it disappears.',
+   118→    },
+   119→    imagePaths: [
+   120→      '/images/topics/memory-of-place.jpg',
+   121→      '/images/letters/letter-old-salmiya.jpg',
+   122→    ],
+   123→  },
+   124→];
+   125→
+   126→/* -------------------------------------------------------------------------- */
+   127→/*  Helpers                                                                   */
+   128→/* -------------------------------------------------------------------------- */
+   129→
+   130→const MIN_WORDS = 1800;
+   131→const TARGET_MIN = 2000;
+   132→const TARGET_MAX = 3000;
+   133→
+   134→function countWords(text: string): number {
+   135→  return text
+   136→    .replace(/```[\s\S]*?```/g, ' ')
+   137→    .replace(/!\[[^\]]*\]\([^)]*\)/g, ' ')
+   138→    .replace(/[#>*_`~\-]/g, ' ')
+   139→    .split(/\s+/)
+   140→    .filter((w) => /\p{L}/u.test(w)).length;
+   141→}
+   142→
+   143→/** Strip ```markdown fences and any leading "Here is..." / Arabic preamble. */
+   144→function cleanLLMOutput(raw: string): string {
+   145→  let t = raw.trim();
+   146→  // Remove code fences if present.
+   147→  const fenceMatch = t.match(/^```(?:markdown|md)?\s*\n([\s\S]*?)\n```$/);
+   148→  if (fenceMatch) t = fenceMatch[1].trim();
+   149→  // Drop common English preamble lines like "Here is the essay:".
+   150→  t = t.replace(/^(Here(?:'s| is)[\s\S]*?:\s*\n+)/i, '');
+   151→  // Drop common Arabic preambles like "بالتأكيد..." / "إليك...".
+   152→  t = t.replace(/^(بالتأكيد[^\n]*\n+|إليك[^\n]*\n+|بالطبع[^\n]*\n+)/, '');
+   153→  // Drop a leading "***" divider if the LLM used one after a preamble.
+   154→  t = t.replace(/^\s*\*{3}\s*\n+/, '');
+   155→  // Drop trailing conversational notes.
+   156→  t = t.replace(/\n+(?:Note:|ملاحظة:)[\s\S]*$/i, '');
+   157→  // Drop trailing summary remarks like "آمل أن..." / "I hope...".
+   158→  t = t.replace(/\n+(?:آمل[^\n]*|أتمنى[^\n]*|I hope[^\n]*|Hope[^\n]*)$/i, '');
+   159→  return t.trim();
+   160→}
+   161→
+   162→/* -------------------------------------------------------------------------- */
+   163→/*  Prompt builders                                                           */
+   164→/* -------------------------------------------------------------------------- */
+   165→
+   166→function buildSystemPrompt(lang: 'ar' | 'en'): string {
+   167→  if (lang === 'ar') {
+   168→    return [
+   169→      'أنت كاتبٌ أدبيٌّ محترف تكتب لمجلةٍ كويتيةٍ فاخرةٍ بأسلوب مجلات Cereal و Kinfolk.',
+   170→      'اكتب مقالاً تحريرياً أدبياً بالعربية الفصحى الدافئة، دون لهجةٍ محكيةٍ ثقيلة.',
+   171→      'المقال يجب أن يكون حسّياً، تأملياً، بطيء الإيقاع، يفتح اللحظة لا يلخّصها.',
+   172→      'استخدم عناوين فرعية (## و ###)، اقتباساتٍ (>)، ومراجعة صور بصيغة ![وصف](/images/...).',
+   173→      'لا تستخدم لغة تسويق، لا قوائم نقطية في المتن، لا "نحن متحمسون"، ولا تخاطب القارئ بمباشرةٍ دعائية.',
+   174→      'اجعل كل فقرةٍ تفتح ما بعدها؛ لا تكتب مقدمةً قصيرةً ثمّ تتسارع إلى الخاتمة.',
+   175→      'لا تذكر اسم المجلة أو اسم "لَمَّة" بشكلٍ صريحٍ في النص.',
+   176→    ].join(' ');
+   177→  }
+   178→  return [
+   179→    'You are a professional literary writer for a premium Kuwaiti magazine in the style of Cereal and Kinfolk.',
+   180→    'Write literary editorial prose in English.',
+   181→    'The prose must be sensory, contemplative, slow-paced, opening the moment rather than summarizing it.',
+   182→    'Use subheadings (## and ###), blockquotes (>), and image references in the form ![caption](/images/...).',
+   183→    'No marketing language, no bullet lists in the body, no "we are excited to", and no direct promotional address to the reader.',
+   184→    'Let each paragraph open what follows; do not write a brief intro and then rush to a conclusion.',
+   185→    'Do not mention the magazine name or "Lamma" explicitly in the text.',
+   186→  ].join(' ');
+   187→}
+   188→
+   189→interface PartSpec {
+   190→  /** Which movement of the essay: 1 = opening, 2 = second movement, 3+ = further continuation. */
+   191→  part: number;
+   192→  /** For part >= 2: the previous text to continue from. */
+   193→  previousText?: string;
+   194→  /** Whether this is the final part (closes the essay). */
+   195→  isFinal?: boolean;
+   196→}
+   197→
+   198→function buildUserPrompt(
+   199→  spec: LetterSpec,
+   200→  lang: 'ar' | 'en',
+   201→  partInfo: PartSpec,
+   202→): string {
+   203→  const imgs = spec.imagePaths.join(lang === 'ar' ? '، ' : ', ');
+   204→  const theme = lang === 'ar' ? spec.theme.ar : spec.theme.en;
+   205→
+   206→  if (lang === 'ar') {
+   207→    const common = [
+   208→      `الموضوع الكلي للمقال:`,
+   209→      ``,
+   210→      theme,
+   211→      ``,
+   212→      `مسارات الصور المتاحة: ${imgs}.`,
+   213→    ];
+   214→    if (partInfo.part === 1) {
+   215→      return [
+   216→        ...common,
+   217→        ``,
+   218→        `اكتب الآن القسم الأول من المقال (الحركة الأولى): الافتتاح البطيء والنصف الأول من المتن.`,
+   219→        `القسم الأول يجب أن يكون 1000 إلى 1500 كلمة بالعربية.`,
+   220→        `- افتح بلحظةٍ حسّيةٍ بطيئة (صوت، رائحة، ضوء، ملمس).`,
+   221→        `- استخدم عنوان ## رئيسيٍّ واحد على الأقل، و### فرعياً أو اثنين.`,
+   222→        `- أدرج صورةً واحدةً على الأقل بصيغة ![وصف](/images/...).`,
+   223→        `- لا تختم القسم، بل توقّف عند منعطفٍ طبيعيٍّ يسمح بالاستمرار في القسم التالي.`,
+   224→        `- لا تكتب مقدمةً تعريفية خارج النص الأدبي، ولا خاتمة.`,
+   225→        `- لا تبدأ بـ"بالتأكيد" أو"إليك" أو أي جملةٍ تمهيدية؛ ابدأ مباشرةً بالنص الأدبي.`,
+   226→        `- أعد النص الأدبي فقط.`,
+   227→      ].join('\n');
+   228→    }
+   229→    const isFinal = partInfo.isFinal;
+   230→    const partWordTarget = isFinal ? '1000 إلى 1500 كلمة' : '1000 إلى 1500 كلمة';
+   231→    const partRole = isFinal
+   232→      ? `اكتب الآن القسم الأخير من المقال (الحركة الختامية): تعميقٌ أخير في الصورة والموضوع، ثمّ انفتاحٌ نحو خاتمةٍ تبقي شيئاً معلّقاً لا مشروحاً. اختم المقال بلحظةٍ حسّيةٍ مفتوحة، لا بجملةٍ تلخيصية.`
+   233→      : `اكتب الآن القسم التالي من المقال (حركةٌ جديدة): تعميقٌ في صورةٍ أو فكرةٍ من الموضوع، بمشاهد حسّيةٍ جديدة. لا تختم المقال بعد.`;
+   234→    return [
+   235→      ...common,
+   236→      ``,
+   237→      `ما يلي هو ما كُتب من المقال حتى الآن. أكمل المقال من حيث انتهى، دون إعادة كتابة ما سبق:`,
+   238→      ``,
+   239→      `--- بداية النص السابق ---`,
+   240→      partInfo.previousText ?? '',
+   241→      `--- نهاية النص السابق ---`,
+   242→      ``,
+   243→      partRole,
+   244→      `القسم يجب أن يكون ${partWordTarget} بالعربية.`,
+   245→      `- استخدم عنوان ## أو ### جديد.`,
+   246→      `- أدرج صورةً واحدةً على الأقل بصيغة ![وصف](/images/...).`,
+   247→      `- لا تكرر حرفياً ما ورد في الأقسام السابقة.`,
+   248→      `- لا تكتب مقدمةً أو خاتمةً خارج النص الأدبي.`,
+   249→      `- لا تبدأ بـ"بالتأكيد" أو"إليك" أو أي جملةٍ تمهيدية؛ ابدأ مباشرةً بالنص الأدبي.`,
+   250→      `- أعد النص الأدبي فقط.`,
+   251→    ].join('\n');
+   252→  }
+   253→
+   254→  const common = [
+   255→    `The overall subject of the essay:`,
+   256→    ``,
+   257→    theme,
+   258→    ``,
+   259→    `Available image paths: ${imgs}.`,
+   260→  ];
+   261→  if (partInfo.part === 1) {
+   262→    return [
+   263→      ...common,
+   264→      ``,
+   265→      `Write the FIRST part of the essay (the opening movement): the slow opening and the first half of the body.`,
+   266→      `Part 1 should be 1000 to 1500 words in English.`,
+   267→      `- Open with a slow sensory moment (sound, smell, light, texture).`,
+   268→      `- Use at least one ## main heading, and one or two ### subheadings.`,
+   269→      `- Include at least one image reference as ![caption](/images/...).`,
+   270→      `- Do not conclude; stop at a natural turning point that allows continuation in the next part.`,
+   271→      `- Do not write a definitional preamble outside the literary text, and no conclusion.`,
+   272→      `- Do not begin with "Sure," or "Here is" or any introductory sentence; begin directly with the literary prose.`,
+   273→      `- Return only the literary prose.`,
+   274→    ].join('\n');
+   275→  }
+   276→  const isFinal = partInfo.isFinal;
+   277→  const partRole = isFinal
+   278→    ? `Write the FINAL part of the essay (the closing movement): a final deepening of image and subject, then an opening toward a close that leaves something suspended rather than explained. End the essay with an open sensory moment, not with a summarising sentence.`
+   279→    : `Write the NEXT part of the essay (a new movement): a deepening of an image or idea in the subject, with new sensory scenes. Do not conclude the essay yet.`;
+   280→  return [
+   281→    ...common,
+   282→    ``,
+   283→    `The following is what has been written of the essay so far. Continue the essay from where it ends, without rewriting what came before:`,
+   284→    ``,
+   285→    `--- BEGIN PREVIOUS TEXT ---`,
+   286→    partInfo.previousText ?? '',
+   287→    `--- END PREVIOUS TEXT ---`,
+   288→    ``,
+   289→    partRole,
+   290→    `This part should be 1000 to 1500 words in English.`,
+   291→    `- Use a new ## or ### heading.`,
+   292→    `- Include at least one image reference as ![caption](/images/...).`,
+   293→    `- Do not repeat verbatim what appeared in previous parts.`,
+   294→    `- Do not write a preamble or closing remark outside the literary text.`,
+   295→    `- Do not begin with "Sure," or "Here is" or any introductory sentence; begin directly with the literary prose.`,
+   296→    `- Return only the literary prose.`,
+   297→  ].join('\n');
+   298→}
+   299→
+   300→/* -------------------------------------------------------------------------- */
+   301→/*  LLM call                                                                  */
+   302→/* -------------------------------------------------------------------------- */
+   303→
+   304→async function callLLM(systemPrompt: string, userPrompt: string): Promise<string> {
+   305→  const MAX_RETRIES = 8;
+   306→  let lastErr: unknown;
+   307→  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+   308→    try {
+   309→      const zai = await ZAI.create();
+   310→      const completion = await zai.chat.completions.create({
+   311→        messages: [
+   312→          { role: 'assistant', content: systemPrompt },
+   313→          { role: 'user', content: userPrompt },
+   314→        ],
+   315→        thinking: { type: 'disabled' },
+   316→      });
+   317→      // Small delay after a successful call to be gentle on the API.
+   318→      await new Promise((r) => setTimeout(r, 1500));
+   319→      return completion.choices[0]?.message?.content ?? '';
+   320→    } catch (err) {
+   321→      lastErr = err;
+   322→      const msg = (err as Error)?.message ?? '';
+   323→      const isRateLimit = msg.includes('429') || msg.includes('Too many requests');
+   324→      const isServerError = /status 5\d\d/.test(msg);
+   325→      if (isRateLimit || isServerError) {
+   326→        // Exponential backoff with cap: 5s, 10s, 20s, 40s, 60s, 60s, 60s, 60s.
+   327→        const waitMs = Math.min(60000, 5000 * 2 ** attempt);
+   328→        console.log(`    [callLLM] attempt ${attempt + 1} failed (${isRateLimit ? '429' : '5xx'}); retrying in ${waitMs / 1000}s...`);
+   329→        await new Promise((r) => setTimeout(r, waitMs));
+   330→        continue;
+   331→      }
+   332→      throw err;
+   333→    }
+   334→  }
+   335→  throw lastErr;
+   336→}
+   337→
+   338→/** Generate full content for one letter+language, using as many continuation
+   339→ *  parts as needed to reach TARGET_MIN (up to MAX_PARTS).
+   340→ *
+   341→ *  Each part is cached to disk as soon as it completes, so an interrupted run
+   342→ *  can resume from the last saved part. */
+   343→async function generateContent(
+   344→  spec: LetterSpec,
+   345→  lang: 'ar' | 'en',
+   346→): Promise<{ text: string; parts: number[] }> {
+   347→  const sys = buildSystemPrompt(lang);
+   348→  const MAX_PARTS = 5;
+   349→  const parts: string[] = [];
+   350→  const wordCounts: number[] = [];
+   351→
+   352→  // Resume from any cached parts (named `content.<lang>.partN`).
+   353→  for (let p = 1; p <= MAX_PARTS; p++) {
+   354→    const cached = readCache(spec.slug, `content.${lang}.part${p}`);
+   355→    if (cached === null) break;
+   356→    parts.push(cached);
+   357→    wordCounts.push(countWords(cached));
+   358→    console.log(`    [${spec.slug}/${lang}] part${p} (cached): ${wordCounts[wordCounts.length - 1]} words`);
+   359→  }
+   360→
+   361→  for (let partNum = parts.length + 1; partNum <= MAX_PARTS; partNum++) {
+   362→    const previousText = parts.length > 0 ? parts.join('\n\n') : undefined;
+   363→    const currentTotal = countWords(parts.join('\n\n'));
+   364→    const isFinal = partNum === MAX_PARTS || (partNum >= 2 && currentTotal >= TARGET_MIN);
+   365→    const raw = await callLLM(
+   366→      sys,
+   367→      buildUserPrompt(spec, lang, { part: partNum, previousText, isFinal }),
+   368→    );
+   369→    const cleaned = cleanLLMOutput(raw);
+   370→    const wc = countWords(cleaned);
+   371→    parts.push(cleaned);
+   372→    wordCounts.push(wc);
+   373→    // Save this part to disk immediately for resumability.
+   374→    writeCache(spec.slug, `content.${lang}.part${partNum}`, cleaned);
+   375→    console.log(`    [${spec.slug}/${lang}] part${partNum}: ${wc} words (running total: ${countWords(parts.join('\n\n'))})`);
+   376→    if (countWords(parts.join('\n\n')) >= TARGET_MIN && partNum >= 2) break;
+   377→  }
+   378→
+   379→  const combined = parts.join('\n\n').trim();
+   380→  const combinedWc = countWords(combined);
+   381→  console.log(`    [${spec.slug}/${lang}] final combined: ${combinedWc} words`);
+   382→
+   383→  // Save the combined content too, and clean up part files.
+   384→  writeCache(spec.slug, `content.${lang}`, combined);
+   385→  for (let p = 1; p <= parts.length; p++) {
+   386→    // Best-effort cleanup; ignore errors.
+   387→    try {
+   388→      const fp = cachePath(spec.slug, `content.${lang}.part${p}`);
+   389→      if (existsSync(fp)) writeFileSync(fp, '', 'utf8');
+   390→    } catch {
+   391→      /* ignore */
+   392→    }
+   393→  }
+   394→
+   395→  return { text: combined, parts: wordCounts };
+   396→}
+   397→
+   398→/* -------------------------------------------------------------------------- */
+   399→/*  Excerpt                                                                   */
+   400→/* -------------------------------------------------------------------------- */
+   401→
+   402→async function generateExcerpt(spec: LetterSpec, lang: 'ar' | 'en'): Promise<string> {
+   403→  const theme = lang === 'ar' ? spec.theme.ar : spec.theme.en;
+   404→  const sys =
+   405→    lang === 'ar'
+   406→      ? 'أنت محرّرٌ أدبيٌّ تكتب مقاطع مقتطفاتٍ لمجلةٍ كويتية فاخرة. اكتب فقرةً واحدةً مستقلّةً، إيقاعها شعريٌّ حسّي، بطول 70 إلى 90 كلمة بالعربية الفصحى الدافئة. لا تذكر اسم المجلة. لا تضع عنواناً. لا تخاطب القارئ بلغة دعائية. تجنّب الجمل القصيرة المقتضبة؛ اجعل الفقرة تتمدّد وتتنفّس.'
+   407→      : 'You are a literary editor writing excerpt passages for a premium Kuwaiti magazine. Write a single standalone paragraph with a poetic, sensory cadence, 70 to 90 words in English. Do not mention the magazine. Do not include a heading. Do not address the reader with promotional language. Avoid terse clipped sentences; let the paragraph breathe and expand.';
+   408→  const user =
+   409→    lang === 'ar'
+   410→      ? `اكتب مقطعاً مقتطفاً (70-90 كلمة بالضبط، لا أقلّ من 70 ولا أكثر من 90) يحيل إلى الموضوع التالي، بأسلوبٍ يفتح اللحظة لا يلخّصها. اكتب فقرةً واحدةً متّصلةً فقط:\n\n${theme}`
+   411→      : `Write an excerpt (exactly 70-90 words, no fewer than 70, no more than 90) that gestures toward the following subject, in a style that opens the moment rather than summarizing it. Write one continuous paragraph only:\n\n${theme}`;
+   412→  // Try up to 2 times to land in the 60-80 word band (we ask 70-90 to overshoot).
+   413→  for (let i = 0; i < 2; i++) {
+   414→    const raw = await callLLM(sys, user);
+   415→    let t = cleanLLMOutput(raw).replace(/^>\s?/gm, '').trim();
+   416→    const wc = countWords(t);
+   417→    if (wc >= 60 && wc <= 90) return t;
+   418→    // If too short, ask to extend; if too long, ask to trim.
+   419→    const adjust =
+   420→      wc < 60
+   421→        ? lang === 'ar'
+   422→          ? `المقطع التالي قصيرٌ جداً (${wc} كلمة). أعد كتابته بطول 70-80 كلمة، مع إضافة تفاصيل حسّية:\n\n${t}`
+   423→          : `The following passage is too short (${wc} words). Rewrite it at 70-80 words, adding sensory detail:\n\n${t}`
+   424→        : lang === 'ar'
+   425→          ? `المقطع التالي طويلٌ (${wc} كلمة). اختصره إلى 70-80 كلمة مع الحفاظ على الإيقاع:\n\n${t}`
+   426→          : `The following passage is too long (${wc} words). Trim it to 70-80 words while keeping the cadence:\n\n${t}`;
+   427→    const adjRaw = await callLLM(
+   428→      lang === 'ar'
+   429→        ? 'أنت محرّرٌ أدبيٌّ. أعد كتابة المقطع بالطول المطلوب بدقّة.'
+   430→        : 'You are a literary editor. Rewrite the passage at the requested length precisely.',
+   431→      adjust,
+   432→    );
+   433→    t = cleanLLMOutput(adjRaw).replace(/^>\s?/gm, '').trim();
+   434→    if (countWords(t) >= 55) return t;
+   435→  }
+   436→  // Fallback: return last attempt.
+   437→  return '';
+   438→}
+   439→
+   440→/* -------------------------------------------------------------------------- */
+   441→/*  Resumable cache                                                           */
+   442→/* -------------------------------------------------------------------------- */
+   443→
+   444→const __dirname = dirname(fileURLToPath(import.meta.url));
+   445→const projectRoot = join(__dirname, '..');
+   446→const cacheDir = join(projectRoot, 'scripts', '.letters-cache');
+   447→
+   448→function cachePath(slug: string, key: string): string {
+   449→  return join(cacheDir, `${slug}.${key}.txt`);
+   450→}
+   451→
+   452→function readCache(slug: string, key: string): string | null {
+   453→  const p = cachePath(slug, key);
+   454→  if (!existsSync(p)) return null;
+   455→  return readFileSync(p, 'utf8');
+   456→}
+   457→
+   458→function writeCache(slug: string, key: string, content: string): void {
+   459→  mkdirSync(cacheDir, { recursive: true });
+   460→  writeFileSync(cachePath(slug, key), content, 'utf8');
+   461→}
+   462→
+   463→/* -------------------------------------------------------------------------- */
+   464→/*  File assembly                                                             */
+   465→/* -------------------------------------------------------------------------- */
+   466→
+   467→function tsString(s: string): string {
+   468→  return JSON.stringify(s);
+   469→}
+   470→
+   471→function assembleLettersFile(
+   472→  letters: Array<
+   473→    LetterSpec & {
+   474→      excerpt: { ar: string; en: string };
+   475→      content: { ar: string; en: string };
+   476→    }
+   477→  >,
+   478→): string {
+   479→  const items = letters
+   480→    .map((l) => {
+   481→      const lines: string[] = ['  {'];
+   482→      lines.push(`    slug: ${tsString(l.slug)},`);
+   483→      lines.push(`    title: { ar: ${tsString(l.title.ar)}, en: ${tsString(l.title.en)} },`);
+   484→      lines.push(`    subtitle: { ar: ${tsString(l.subtitle.ar)}, en: ${tsString(l.subtitle.en)} },`);
+   485→      lines.push(`    excerpt: { ar: ${tsString(l.excerpt.ar)}, en: ${tsString(l.excerpt.en)} },`);
+   486→      lines.push(`    content: { ar: ${tsString(l.content.ar)}, en: ${tsString(l.content.en)} },`);
+   487→      lines.push(`    coverImageUrl: ${tsString(l.coverImageUrl)},`);
+   488→      lines.push(`    galleryUrls: ${JSON.stringify(l.galleryUrls)},`);
+   489→      lines.push(`    readTimeMinutes: ${l.readTimeMinutes},`);
+   490→      lines.push(`    publishedAt: ${tsString(l.publishedAt)},`);
+   491→      lines.push(`    topicSlug: ${tsString(l.topicSlug)},`);
+   492→      lines.push(`    authorHostHandle: ${tsString(l.authorHostHandle)},`);
+   493→      lines.push(`    gatheringSlug: ${l.gatheringSlug === null ? 'null' : tsString(l.gatheringSlug)},`);
+   494→      lines.push('  },');
+   495→      return lines.join('\n');
+   496→    })
+   497→    .join('\n');
+   498→
+   499→  return `/* eslint-disable */
+   500→/**
+   501→ * letters.ts — 3 long-form bilingual editorial Letters for Lamma Phase 0.
+   502→ *
+   503→ * Body content drafted by LLM (z-ai-web-dev-sdk) in two parts per language,
+   504→ * then curated into the Cereal / Kinfolk literary register. Each
+   505→ * \`content.ar\` and \`content.en\` is 2000–3000 words of Markdown.
+   506→ *
+   507→ * Auto-generated by \`scripts/generate-letters.ts\`. Re-run that script to
+   508→ * regenerate; do not hand-edit the body strings unless re-running.
+   509→ */
+   510→
+   511→import { letterSchema, type Letter } from './types';
+   512→
+   513→export const letters: Letter[] = [
+   514→${items}
+   515→];
+   516→
+   517→export const lettersBySlug: Record<string, Letter> = Object.fromEntries(
+   518→  letters.map((l) => [l.slug, l]),
+   519→);
+   520→
+   521→export function getLetter(slug: string): Letter | undefined {
+   522→  return lettersBySlug[slug];
+   523→}
+   524→
+   525→// Validate at module load (fails fast in dev if data is malformed).
+   526→letters.forEach((l) => letterSchema.parse(l));
+   527→`;
+   528→}
+   529→
+   530→/* -------------------------------------------------------------------------- */
+   531→/*  Main                                                                      */
+   532→/* -------------------------------------------------------------------------- */
+   533→
+   534→async function main() {
+   535→  const outPath = join(projectRoot, 'src', 'data', 'letters.ts');
+   536→  const results: Array<{
+   537→    spec: LetterSpec;
+   538→    ar: { text: string; wordCount: number };
+   539→    en: { text: string; wordCount: number };
+   540→    excerptAr: string;
+   541→    excerptEn: string;
+   542→  }> = [];
+   543→
+   544→  for (const spec of letterSpecs) {
+   545→    console.log(`\n=== Letter: ${spec.slug} ===`);
+   546→
+   547→    // Generate each piece independently and cache immediately so the run is
+   548→    // resumable if interrupted mid-letter.
+   549→    const arText = readCache(spec.slug, 'content.ar') ?? (await (async () => {
+   550→      const r = await generateContent(spec, 'ar');
+   551→      writeCache(spec.slug, 'content.ar', r.text);
+   552→      return r.text;
+   553→    })());
+   554→    const enText = readCache(spec.slug, 'content.en') ?? (await (async () => {
+   555→      const r = await generateContent(spec, 'en');
+   556→      writeCache(spec.slug, 'content.en', r.text);
+   557→      return r.text;
+   558→    })());
+   559→    const excerptAr =
+   560→      readCache(spec.slug, 'excerpt.ar') ?? (await (async () => {
+   561→        const t = await generateExcerpt(spec, 'ar');
+   562→        writeCache(spec.slug, 'excerpt.ar', t);
+   563→        return t;
+   564→      })());
+   565→    const excerptEn =
+   566→      readCache(spec.slug, 'excerpt.en') ?? (await (async () => {
+   567→        const t = await generateExcerpt(spec, 'en');
+   568→        writeCache(spec.slug, 'excerpt.en', t);
+   569→        return t;
+   570→      })());
+   571→
+   572→    results.push({
+   573→      spec,
+   574→      ar: { text: arText, wordCount: countWords(arText) },
+   575→      en: { text: enText, wordCount: countWords(enText) },
+   576→      excerptAr,
+   577→      excerptEn,
+   578→    });
+   579→  }
+   580→
+   581→  // Assemble final letters array.
+   582→  const finalLetters = results.map((r) => ({
+   583→    ...r.spec,
+   584→    excerpt: { ar: r.excerptAr, en: r.excerptEn },
+   585→    content: { ar: r.ar.text, en: r.en.text },
+   586→  }));
+   587→
+   588→  const fileContent = assembleLettersFile(finalLetters);
+   589→  mkdirSync(dirname(outPath), { recursive: true });
+   590→  writeFileSync(outPath, fileContent, 'utf8');
+   591→
+   592→  // Report.
+   593→  console.log('\n========== GENERATION REPORT ==========');
+   594→  console.log(`Output: ${outPath}\n`);
+   595→  for (const r of results) {
+   596→    const arWc = r.ar.wordCount;
+   597→    const enWc = r.en.wordCount;
+   598→    const arStatus = arWc >= TARGET_MIN ? 'OK' : arWc >= MIN_WORDS ? 'ACCEPTABLE' : 'TOO SHORT';
+   599→    const enStatus = enWc >= TARGET_MIN ? 'OK' : enWc >= MIN_WORDS ? 'ACCEPTABLE' : 'TOO SHORT';
+   600→    const exArWc = countWords(r.excerptAr);
+   601→    const exEnWc = countWords(r.excerptEn);
+   602→    console.log(
+   603→      `Letter: ${r.spec.slug}\n` +
+   604→        `  AR content: ${arWc} words [${arStatus}]\n` +
+   605→        `  EN content: ${enWc} words [${enStatus}]\n` +
+   606→        `  Excerpt AR: ${exArWc} words | EN: ${exEnWc} words\n` +
+   607→        `  readTimeMinutes: ${r.spec.readTimeMinutes} (en/220 ≈ ${Math.round(enWc / 220)})`,
+   608→    );
+   609→  }
+   610→  console.log('\nDone.');
+   611→}
+   612→
+   613→main().catch((err) => {
+   614→  console.error('FATAL:', err);
+   615→  console.error('stack:', (err as Error)?.stack);
+   616→  process.exit(1);
+   617→});
+   618→

@@ -1,0 +1,154 @@
+{
+  "meta": {
+    "title": "Lamma — Intimate Kuwaiti Gatherings",
+    "description": "A Kuwaiti platform for curated intimate gatherings. We treat gatherings as conversation, not transaction.",
+    "localeName": "English",
+    "localeSwitchTo": "العربية"
+  },
+  "nav": {
+    "gatherings": "Gatherings",
+    "hosts": "Hosts",
+    "topics": "Topics",
+    "letters": "Letters",
+    "account": "Account",
+    "openMenu": "Open menu",
+    "closeMenu": "Close menu",
+    "switchLocale": "Switch language"
+  },
+  "footer": {
+    "titles": {
+      "about": "About Lamma",
+      "help": "Help",
+      "contact": "Contact"
+    },
+    "about": {
+      "story": "Our story",
+      "manifesto": "Manifesto",
+      "team": "Team"
+    },
+    "help": {
+      "faq": "FAQ",
+      "apply": "How to join",
+      "host": "Become a host",
+      "conduct": "Code of conduct"
+    },
+    "contact": {
+      "email": "hello@lamma.kw",
+      "instagram": "Instagram",
+      "x": "X"
+    },
+    "rights": "© 2026 Lamma. Made with care in Kuwait."
+  },
+  "hero": {
+    "eyebrow": "A letter from Lamma",
+    "readFullLetter": "Read the full letter",
+    "byAuthor": "By",
+    "featuredGathering": "Featured gathering",
+    "applyNow": "Apply now",
+    "viewGathering": "Gathering details"
+  },
+  "sections": {
+    "upcomingGatherings": "Upcoming gatherings",
+    "upcomingGatheringsHint": "Applications are open now",
+    "hosts": "Gathering hosts",
+    "hostsHint": "Those who bring us together",
+    "topics": "Editorial topics",
+    "topicsHint": "Six threads that every gathering is woven around",
+    "letters": "Letters from Lamma",
+    "lettersHint": "What is written after a gathering disperses",
+    "newsletter": "Lamma newsletter",
+    "newsletterTitle": "One letter a month. No noise.",
+    "newsletterDesc": "We tell you about upcoming gatherings and one editorial essay worth reading. No ads, no spam.",
+    "newsletterPlaceholder": "Your email",
+    "newsletterSubscribe": "Subscribe",
+    "newsletterSuccess": "Thank you. The next letter will reach you soon."
+  },
+  "gatherings": {
+    "capacity": "Capacity",
+    "seatsFilled": "seat filled",
+    "seatsFilled_plural": "seats filled",
+    "of": "of",
+    "free": "Free",
+    "priceFrom": "From",
+    "kwd": "KWD",
+    "applicationDeadline": "Applications close",
+    "startsAt": "Starts",
+    "viewAll": "All gatherings",
+    "viewGathering": "Gathering details",
+    "prayerAware": "Prayer-aware",
+    "prayerAwareDesc": "This gathering begins right after Isha prayer"
+  },
+  "hosts": {
+    "verified": "Verified",
+    "gatheringsHosted": "gatherings hosted",
+    "totalAttendees": "attendees",
+    "avgRating": "Rating",
+    "responseTime": "Responds within",
+    "hours": "hours",
+    "viewProfile": "Full profile"
+  },
+  "topics": {
+    "explore": "Explore topic",
+    "gatheringsUnder": "gatherings under this topic"
+  },
+  "letters": {
+    "readMore": "Continue reading",
+    "readTime": "minutes read",
+    "minRead": "min read",
+    "publishedOn": "Published",
+    "byAuthor": "By"
+  },
+  "prayer": {
+    "label": "Prayer times",
+    "next": "Next prayer",
+    "in": "in",
+    "fajr": "Fajr",
+    "sunrise": "Sunrise",
+    "dhuhr": "Dhuhr",
+    "asr": "Asr",
+    "maghrib": "Maghrib",
+    "isha": "Isha",
+    "awareNote": "This gathering observes prayer times"
+  },
+  "formats": {
+    "MEN_ONLY": "Men only",
+    "WOMEN_ONLY": "Women only",
+    "FAMILY": "Family",
+    "MIXED": "Mixed"
+  },
+  "membership": {
+    "NEWCOMER": "Newcomer",
+    "REGULAR": "Regular",
+    "CURATOR": "Curator",
+    "HOST": "Host"
+  },
+  "application_status": {
+    "PENDING": "Under review",
+    "APPROVED": "Approved",
+    "REJECTED": "Declined",
+    "WAITLISTED": "Waitlisted",
+    "CANCELLED": "Cancelled"
+  },
+  "status": {
+    "DRAFT": "Draft",
+    "PUBLISHED": "Published",
+    "APPLICATIONS_OPEN": "Applications open",
+    "APPLICATIONS_CLOSED": "Applications closed",
+    "IN_PROGRESS": "In progress",
+    "COMPLETED": "Completed",
+    "CANCELLED": "Cancelled"
+  },
+  "common": {
+    "loading": "Loading…",
+    "error": "Something went wrong",
+    "retry": "Retry",
+    "back": "Back",
+    "more": "More",
+    "soon": "Soon",
+    "placeholder": "This section is built in a later phase"
+  },
+  "language": {
+    "ar": "العربية",
+    "en": "English"
+  }
+}
