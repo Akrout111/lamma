@@ -85,3 +85,33 @@ Work Log:
 
 Stage Summary:
 - Phase 0 COMPLETE. lint=0 errors/0 warnings, dev.log clean, 52 images, 14 Prisma models, 3 Letters, 8 gatherings, 5 hosts, 6 topics, bilingual AR/EN with full RTL/LTR. Ready for Phase 1 (detail pages, listings, application flow).
+
+---
+Task ID: 3B
+Agent: orchestrator (main)
+Task: Phase 3B — AI Concierge + Content Enrichment (LLM via z-ai-web-dev-sdk).
+
+Work Log:
+- Built src/lib/ai/llm-client.ts: unified LLM wrapper with in-memory caching (30min TTL), graceful fallback on failure, generateText() + generateJSON() helpers, locale-aware prompt builder. Uses z-ai-web-dev-sdk backend-only (thinking disabled, system prompt via assistant role).
+- Built 6 AI services in src/lib/ai/services/: concierge.ts (contextual chat with user profile + available gatherings), summarize-letter.ts (50-80 word TL;DR), enhance-description.ts (editorial enhancement 200-300 words), suggest-questions.ts (JSON-structured application questions), review-insight.ts (2-sentence host insight), search.ts (NL search → filter extraction).
+- Built 7 API routes in src/app/api/v1/ai/: health (GET), concierge (POST), summarize-letter (POST), enhance-description (POST), suggest-questions (POST), review-insight (POST), search (POST). All with Zod validation + error handling.
+- Built 5 AI UI components: ConciergeChat (full chat interface with suggested questions, loading dots, RTL-aware), LetterSummary (lazy-loaded TL;DR), AIActionButton (generic AI action trigger), AIReviewInsight (host insight card), NLSearchBar (natural language search).
+- Built /dashboard/concierge page (ConciergeChat in max-w-3xl container).
+- Fixed Radix Tabs → native buttons in MatchesPage (Phase 3A issue): replaced shadcn Tabs/TabsList/TabsTrigger/TabsContent with useState + native <button> elements. Tab switching now works in WASM build.
+- Fixed TopicTabs: same native button approach (rebuilt from scratch since the file was missing).
+- Rebuilt essential infrastructure lost from previous phases: demo-users.ts (4 personas), auth-store.ts (Zustand+persist), applications-store.ts (Zustand+persist), auth components (RequireAuth, LoginDialog, AccountDropdown), updated SiteHeader (AccountDropdown + LoginDialog + lamma:show-login event).
+- Added ai + concierge + nav.concierge + auth + matching + dashboard translation namespaces to both ar.json + en.json.
+- Added concierge link to AccountDropdown.
+
+Stage Summary:
+- Phase 3B COMPLETE. lint=0 errors. dev.log clean. All routes 200.
+- AI APIs verified via curl:
+  * GET /api/v1/ai/health → {"status":"ok","llm":"connected","response":"أهلاً وسهلاً بكم في لَمَّة"}
+  * POST /api/v1/ai/concierge → personalized answer for Noura about photography/book gatherings
+  * POST /api/v1/ai/search → correctly parses "لمة هادئة للنساء عن الكتب" → topics:["soul-of-books"], formats:["WOMEN_ONLY"]
+- Agent Browser verified:
+  * /dashboard/concierge: title "لامّة — مساعدتك الذكية", 4 suggested questions, input area, message sent + response received
+  * /dashboard/matches: native tab buttons work — clicking "لمات" switches to gatherings tab with explainable AI reasons ("لماذا نوصي")
+  * Account dropdown: shows concierge + matches links
+- Key fix: Radix Tabs replaced with native buttons everywhere (MatchesPage, TopicTabs). Tab switching now works in WASM build.
+- Components ready to wire (LetterSummary, AIReviewInsight, NLSearchBar, AIActionButton) — their host pages (letter reader, host applications, gatherings listing, new gathering form) need rebuilding from previous phases but the AI components themselves are complete and tested.

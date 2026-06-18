@@ -1,0 +1,851 @@
+---
+
+# 📨 البرومبت #1B — Discovery: Hosts + Topics + Letters Pages
+
+انسخ البرومبت التالي وأرسله إلى GLM 5.2 Full Stack Agent:
+
+```markdown
+# مهمة: المرحلة 1B — صفحات أصحاب التجمعات + المواضيع + الرسائل التحريرية
+
+## 📖 السياق والمراجع الإلزامية
+
+المرحلة 0 + 1A مكتملتان بنجاح. اقرأ أولاً:
+1. `/home/z/my-project/worklog.md` — سجل عمل المراحل السابقة
+2. `/home/z/my-project/reference/Lamma-Project-Full-Documentation.md` — المواصفات الكاملة
+3. الكود الموجود في:
+   - `src/app/[locale]/gatherings/` — نمط صفحات القائمة والتفاصيل
+   - `src/components/lamma/` — المكوّنات الموجودة (خاصة GatheringCard, LetterCard)
+   - `src/data/` — كل ملفات البيانات
+   - `messages/ar.json` + `messages/en.json` — مفاتيح الترجمة
+
+**هذه المرحلة 1B من 8 مراحل. لا تتجاوز نطاقها.**
+
+---
+
+## 🎯 هدف هذه المرحلة بالضبط
+
+إكمال طبقة الـ Discovery ببناء 6 صفحات جديدة:
+
+1. ✅ **صفحة قائمة أصحاب التجمعات** `/[locale]/hosts`
+2. ✅ **صفحة ملف صاحب التجمع** `/[locale]/hosts/[handle]`
+3. ✅ **صفحة قائمة المواضيع** `/[locale]/topics`
+4. ✅ **صفحة موضوع تحريري** `/[locale]/topics/[slug]`
+5. ✅ **صفحة أرشيف الرسائل** `/[locale]/letters`
+6. ✅ **صفحة قراءة رسالة** `/[locale]/letters/[slug]`
+
+بالإضافة إلى:
+- ✅ ربط كل البطاقات placeholder على الـ homepage
+- ✅ ربط روابط الـ header nav (أصحاب، مواضيع، رسائل)
+- ✅ تفعيل روابط الـ footer
+- ✅ صفحة "عن لَمَّة" `/[locale]/about` + "أسئلة شائعة" `/[locale]/faq`
+- ✅ تحديث breadcrumbs في كل صفحة
+
+**لا تبني في هذه المرحلة:**
+- ❌ نموذج الـ application (Phase 2)
+- ❌ Host dashboard (Phase 2)
+- ❌ Live companion (Phase 4)
+- ❌ AI matching logic (Phase 3)
+- ❌ أي backend logic جديدة (كل البيانات من `src/data/`)
+
+---
+
+## 🛣️ المسارات الجديدة (Routes)
+
+```
+src/app/[locale]/
+├── hosts/
+│   ├── page.tsx              # القائمة (5 أصحاب)
+│   └── [handle]/
+│       └── page.tsx          # ملف صاحب
+├── topics/
+│   ├── page.tsx              # قائمة المواضيع (6)
+│   └── [slug]/
+│       └── page.tsx          # صفحة موضوع
+├── letters/
+│   ├── page.tsx              # الأرشيف (3 رسائل)
+│   └── [slug]/
+│       └── page.tsx          # قارئ الرسالة
+├── about/
+│   └── page.tsx              # عن لَمَّة
+└── faq/
+    └── page.tsx              # أسئلة شائعة
+```
+
+استخدم `Link` من `@/i18n/routing` لكل الروابط الداخلية.
+استخدم `generateStaticParams` لكل صفحات `[handle]` و `[slug]` (static generation).
+استخدم `generateMetadata` لكل صفحة.
+
+---
+
+## 🎨 الهوية البصرية (مذكّر)
+
+- الألوان: sand/paper/ink/clay/teal/saffron/stone (ممنوع: indigo/blue)
+- الخطوط: Fraunces (display EN), IBM Plex Sans Arabic (AR), Inter (body EN), JetBrains Mono (numbers)
+- استخدم logical properties: `ms-`, `me-`, `ps-`, `pe-`
+- المرجع البصري: Cereal Magazine, Kinfolk, Sofar Sounds
+- مساحات بيضاء واسعة، حواف 8-12px radius
+
+---
+
+## 📄 الصفحة 1: قائمة أصحاب التجمعات (`/[locale]/hosts`)
+
+### التخطيط
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ Breadcrumbs: الرئيسية > أصحاب                                │
+├─────────────────────────────────────────────────────────────┤
+│ Page Header (editorial):                                     │
+│   - Title: "أصحاب التجمعات" (h1 بخط Fraunces)                │
+│   - Subtitle: "أشخاص يصنعون لمات لا تُنسى"                   │
+├─────────────────────────────────────────────────────────────┤
+│ Filter chips:                                                │
+│   [الكل] [موثّقون فقط] [حسب الموضوع ▼]                       │
+├─────────────────────────────────────────────────────────────┤
+│ Grid: 1 col (mobile) / 2 col (tablet) / 3 col (desktop)      │
+│   [HostCard] [HostCard] [HostCard]                           │
+│   [HostCard] [HostCard]                                      │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### HostCard المحدّث (في `src/components/lamma/HostCard.tsx`)
+
+اجعلها رابطاً لـ `/hosts/${handle}` مع:
+
+```tsx
+<Link href={`/hosts/${host.handle}`} className="group block">
+  <Card className="overflow-hidden hover:shadow-lg transition-all duration-300 group-hover:-translate-y-1">
+    {/* Cover image */}
+    <div className="aspect-[16/9] relative overflow-hidden">
+      <Image src={host.coverUrl} alt="" fill className="object-cover transition-transform duration-500 group-hover:scale-105" />
+      <div className="absolute inset-0 bg-gradient-to-t from-ink/40 to-transparent" />
+      
+      {/* Avatar + Verified */}
+      <div className="absolute bottom-4 start-4 flex items-end gap-3">
+        <Avatar className="size-16 ring-4 ring-paper">
+          <AvatarImage src={host.avatarUrl} alt={localized(host.displayName)} />
+        </Avatar>
+        {host.isVerified && (
+          <Badge className="mb-2 bg-clay text-paper">
+            <CheckCircle className="size-3 me-1" /> {t('common.verified')}
+          </Badge>
+        )}
+      </div>
+    </div>
+    
+    {/* Body */}
+    <CardContent className="p-5">
+      <h3 className="font-display text-xl mb-1">{localized(host.displayName)}</h3>
+      <p className="text-sm text-stone mb-3">{host.handle}</p>
+      <p className="text-sm text-ink/70 line-clamp-3 mb-4">{localized(host.bio)}</p>
+      
+      {/* Stats */}
+      <div className="flex items-center gap-4 text-xs text-stone tabular">
+        <span className="flex items-center gap-1">
+          <Calendar className="size-3" /> {host.totalGatherings}
+        </span>
+        <span className="flex items-center gap-1">
+          <Star className="size-3" /> {host.avgRating?.toFixed(1) ?? '—'}
+        </span>
+        <span className="flex items-center gap-1">
+          <Clock className="size-3" /> {host.responseTimeHours}س
+        </span>
+      </div>
+      
+      {/* Specialties */}
+      <div className="flex flex-wrap gap-1 mt-3">
+        {host.specialties.slice(0, 3).map(s => (
+          <span key={s} className="text-xs px-2 py-0.5 rounded-full bg-sand text-stone">
+            {t(`specialties.${s}`, { defaultMessage: s })}
+          </span>
+        ))}
+      </div>
+    </CardContent>
+  </Card>
+</Link>
+```
+
+### الفلترة
+- "الكل" / "موثّقون فقط" (toggle)
+- "حسب الموضوع" dropdown (multi-select) — يفلتر حسب `host.topicSlugs`
+- استخدم URL params: `?verified=true&topics=memory-of-place,food-stories`
+
+---
+
+## 📄 الصفحة 2: ملف صاحب التجمع (`/[locale]/hosts/[handle]`)
+
+### التخطيط (editorial portfolio style)
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│ Breadcrumbs: الرئيسية > أصحاب > [اسم صاحب]                    │
+├──────────────────────────────────────────────────────────────┤
+│ COVER (16:9 cover image, max-h 40vh)                          │
+│   - Cover image                                               │
+│   - Gradient overlay                                          │
+│   - Avatar كبير (size-24)                                     │
+│   - Display name (h1)                                         │
+│   - Handle                                                    │
+│   - Verified badge                                            │
+│   - Specialties chips                                         │
+│   - Social links (Instagram, X, website)                      │
+├──────────────────────────────────────────────────────────────┤
+│ Two-column layout:                                            │
+│ ┌─────────────────────────────────┐ ┌────────────────────┐  │
+│ │ MAIN COLUMN (8/12):             │ │ SIDEBAR (4/12):    │  │
+│ │                                 │ │                    │  │
+│ │ "نبذة" (h2)                     │ │ [Stats Card]       │  │
+│ │ - Bio الطويل                    │ │   - لمات منظمة     │  │
+│ │                                 │ │   - إجمالي الحضور   │  │
+│ │ "اللمات القادمة" (h2)           │ │   - متوسط التقييم   │  │
+│ │ - List of upcoming gatherings  │ │   - زمن الرد         │  │
+│ │   (3 cards max)                 │ │                    │  │
+│ │                                 │ │ [Contact Card]     │  │
+│ │ "لمات سابقة" (h2)              │ │   - Instagram      │  │
+│ │ - Past gatherings grid         │ │   - X (Twitter)     │  │
+│ │                                 │ │   - Website        │  │
+│ │ "رسائل من لماتي" (h2)          │ │                    │  │
+│ │ - 2 LetterCards (لو موجودة)    │ │ [Host CTA]         │  │
+│ │                                 │ │   - "تواصل معه"    │  │
+│ └─────────────────────────────────┘ └────────────────────┘  │
+└──────────────────────────────────────────────────────────────┘
+```
+
+### Stats Card
+```tsx
+<Card className="p-6 sticky top-24">
+  <h3 className="font-display text-lg mb-4">{t('hosts.stats')}</h3>
+  <dl className="space-y-3">
+    <div className="flex justify-between">
+      <dt className="text-sm text-stone">{t('hosts.totalGatherings')}</dt>
+      <dd className="font-display tabular">{host.totalGatherings}</dd>
+    </div>
+    <div className="flex justify-between">
+      <dt className="text-sm text-stone">{t('hosts.totalAttendees')}</dt>
+      <dd className="font-display tabular">{host.totalAttendees}</dd>
+    </div>
+    <div className="flex justify-between">
+      <dt className="text-sm text-stone">{t('hosts.avgRating')}</dt>
+      <dd className="font-display tabular flex items-center gap-1">
+        <Star className="size-3 fill-saffron text-saffron" />
+        {host.avgRating?.toFixed(1) ?? '—'}
+      </dd>
+    </div>
+    <div className="flex justify-between">
+      <dt className="text-sm text-stone">{t('hosts.responseTime')}</dt>
+      <dd className="font-display tabular">{t('hosts.hours', { count: host.responseTimeHours })}</dd>
+    </div>
+  </dl>
+</Card>
+```
+
+### Behavior
+- الـ cover image + avatar في أعلى الصفحة (full-width cover)
+- "اللمات القادمة" = `gatherings` where `hostHandle === host.handle` && `startDate > now` && `status !== 'CANCELLED'`
+- "لمات سابقة" = `gatherings` where `hostHandle === host.handle` && `startDate < now`
+- "رسائل من لماتي" = `letters` where `authorHostHandle === host.handle`
+- 404 لو الـ handle غير موجود → استخدم نفس صفحة 404 المخصصة
+
+---
+
+## 📄 الصفحة 3: قائمة المواضيع (`/[locale]/topics`)
+
+### التخطيط (magazine-style)
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ Breadcrumbs: الرئيسية > مواضيع                                │
+├─────────────────────────────────────────────────────────────┤
+│ Page Header:                                                 │
+│   - Title: "مواضيع تحريرية" (h1)                             │
+│   - Subtitle: "تصفّح لَمَّة عبر عدسات متعددة"                 │
+├─────────────────────────────────────────────────────────────┤
+│ Grid: 1 col (mobile) / 2 col (tablet) / 3 col (desktop)      │
+│   ┌────────────────────────────────────┐                    │
+│   │ [Cover image 4:5]                  │                    │
+│   │                                    │                    │
+│   │ Topic name (h3)                    │                    │
+│   │ Description (2-3 lines)            │                    │
+│   │ "X لمات • Y رسائل"                 │                    │
+│   └────────────────────────────────────┘                    │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### TopicCard (مكوّن جديد)
+
+```tsx
+// src/components/lamma/TopicCard.tsx
+<Link href={`/topics/${topic.slug}`} className="group block">
+  <Card className="overflow-hidden hover:shadow-lg transition-all duration-300 group-hover:-translate-y-1">
+    <div className="aspect-[4/5] relative overflow-hidden">
+      <Image src={topic.coverImageUrl} alt={localized(topic.name)} fill className="object-cover transition-transform duration-500 group-hover:scale-105" />
+      <div className="absolute inset-0 bg-gradient-to-t from-ink via-ink/40 to-transparent" />
+      
+      {/* Colored accent (topic color) */}
+      <div className="absolute top-4 start-4">
+        <span className="block w-8 h-1 rounded-full" style={{ backgroundColor: topic.color }} />
+      </div>
+      
+      {/* Title overlay */}
+      <div className="absolute bottom-0 inset-x-0 p-5">
+        <h3 className="font-display text-2xl text-paper mb-2">{localized(topic.name)}</h3>
+        <p className="text-paper/80 text-sm line-clamp-2">{localized(topic.description)}</p>
+      </div>
+    </div>
+    
+    <CardContent className="p-4 flex items-center justify-between text-xs text-stone tabular">
+      <span>{gatheringsCount} {t('topics.gatheringsCount')}</span>
+      <span>{lettersCount} {t('topics.lettersCount')}</span>
+    </CardContent>
+  </Card>
+</Link>
+```
+
+---
+
+## 📄 الصفحة 4: صفحة موضوع تحريري (`/[locale]/topics/[slug]`)
+
+### التخطيط (editorial magazine page)
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│ Breadcrumbs: الرئيسية > مواضيع > [اسم الموضوع]                │
+├──────────────────────────────────────────────────────────────┤
+│ HERO (4:5 image, max-h 60vh, centered max-w-3xl)             │
+│   - Cover image                                              │
+│   - Topic accent color bar (top)                             │
+│   - Topic name (h1, large 48-64px)                           │
+│   - Description (long-form, 2-3 paragraphs)                  │
+├──────────────────────────────────────────────────────────────┤
+│ Tabs:                                                        │
+│   [لمات قادمة] [لمات سابقة] [رسائل]                          │
+├──────────────────────────────────────────────────────────────┤
+│ Tab content (animated):                                      │
+│   - Gatherings: grid of GatheringCard                        │
+│   - Letters: list of LetterCard                              │
+└──────────────────────────────────────────────────────────────┘
+```
+
+### Topic Hero
+
+```tsx
+<section className="relative max-w-3xl mx-auto px-4 py-12 md:py-20">
+  {/* Color accent */}
+  <div className="w-12 h-1 rounded-full mb-6" style={{ backgroundColor: topic.color }} />
+  
+  <h1 className="font-display text-4xl md:text-6xl mb-6 leading-tight">
+    {localized(topic.name)}
+  </h1>
+  
+  <p className="text-lg text-ink/70 leading-relaxed">
+    {localized(topic.description)}
+  </p>
+  
+  <div className="flex gap-6 mt-8 text-sm text-stone tabular">
+    <span>{upcomingCount} {t('topics.upcomingGatherings')}</span>
+    <span>•</span>
+    <span>{pastCount} {t('topics.pastGatherings')}</span>
+    <span>•</span>
+    <span>{lettersCount} {t('topics.lettersCount')}</span>
+  </div>
+</section>
+```
+
+### Tabs (using shadcn Tabs)
+- "لمات قادمة" — `gatherings` where `topicSlug === topic.slug` && `startDate > now`
+- "لمات سابقة" — `gatherings` where `topicSlug === topic.slug` && `startDate < now`
+- "رسائل" — `letters` where `topicSlug === topic.slug`
+
+---
+
+## 📄 الصفحة 5: أرشيف الرسائل (`/[locale]/letters`)
+
+### التخطيط (magazine archive)
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ Breadcrumbs: الرئيسية > رسائل                                │
+├─────────────────────────────────────────────────────────────┤
+│ Page Header:                                                 │
+│   - Title: "رسائل من لمة" (h1 بخط Fraunces ضخم)             │
+│   - Subtitle: "حكايات تُروى بعد كل تجمّع"                   │
+│   - Description (longer, editorial style)                    │
+├─────────────────────────────────────────────────────────────┤
+│ Featured letter (الأحدث):                                    │
+│   ┌────────────────────────────────────────────────────┐    │
+│   │ [Cover image 21:9]                                 │    │
+│   │ Topic pill + Letter title (h2) + excerpt           │    │
+│   │ Author + read time + date                          │    │
+│   └────────────────────────────────────────────────────┘    │
+├─────────────────────────────────────────────────────────────┤
+│ Grid of older letters:                                       │
+│   [LetterCard] [LetterCard] [LetterCard]                     │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### LetterCard المحدّث (في `src/components/lamma/LetterCard.tsx`)
+
+```tsx
+<Link href={`/letters/${letter.slug}`} className="group block">
+  <article className="overflow-hidden rounded-lg bg-paper hover:shadow-lg transition-all duration-300">
+    <div className="aspect-[16/9] relative overflow-hidden">
+      <Image src={letter.coverImageUrl} alt={localized(letter.title)} fill className="object-cover transition-transform duration-500 group-hover:scale-105" />
+      {letter.topicSlug && <TopicPill slug={letter.topicSlug} className="absolute top-3 start-3" />}
+    </div>
+    <div className="p-5">
+      <h3 className="font-display text-xl mb-2 line-clamp-2 group-hover:text-clay transition-colors">
+        {localized(letter.title)}
+      </h3>
+      {letter.subtitle && (
+        <p className="text-sm text-stone mb-3 italic">{localized(letter.subtitle)}</p>
+      )}
+      <p className="text-sm text-ink/70 line-clamp-3 mb-4">{localized(letter.excerpt)}</p>
+      
+      <div className="flex items-center justify-between text-xs text-stone">
+        <span>{localized(authorName)}</span>
+        <span className="tabular flex items-center gap-2">
+          <Clock className="size-3" />
+          {letter.readTimeMinutes} {t('letters.minRead')}
+          •
+          {formatRelative(letter.publishedAt, locale)}
+        </span>
+      </div>
+    </div>
+  </article>
+</Link>
+```
+
+---
+
+## 📄 الصفحة 6: قارئ الرسالة (`/[locale]/letters/[slug]`)
+
+### التخطيط (premium long-form reader, مثل Medium/Sermon)
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│ Breadcrumbs: الرئيسية > رسائل > [عنوان مختصر]                │
+├──────────────────────────────────────────────────────────────┤
+│ ARTICLE HEADER (centered, max-w-3xl):                        │
+│   - Topic pill                                               │
+│   - Title (h1, very large 48-72px, font-display)            │
+│   - Subtitle (italic, stone color)                           │
+│   - Author row: avatar + name + role + date                  │
+│   - Read time + share buttons                                │
+├──────────────────────────────────────────────────────────────┤
+│ COVER IMAGE (full-width, 21:9, max-h 50vh)                   │
+├──────────────────────────────────────────────────────────────┤
+│ ARTICLE BODY (prose, max-w-2xl, centered):                   │
+│   - Markdown rendered with rich typography                   │
+│   - Drop cap on first paragraph                              │
+│   - Headings h2/h3 with clay color                           │
+│   - Blockquotes (italic, indented, saffron border-start)     │
+│   - Inline images                                            │
+│   - Pull quotes (large, font-display)                        │
+├──────────────────────────────────────────────────────────────┤
+│ ARTICLE FOOTER:                                              │
+│   - Share buttons (Twitter, Facebook, copy link)             │
+│   - Author bio card                                          │
+│   - "رسائل أخرى" (2 LetterCards)                             │
+├──────────────────────────────────────────────────────────────┤
+│ Comments placeholder (موقع للتعليقات مستقبلاً)                │
+└──────────────────────────────────────────────────────────────┘
+```
+
+### Markdown Rendering
+
+استخدم `react-markdown` (موجود في dependencies) مع components مخصصة:
+
+```tsx
+// src/components/lamma/letters/LetterContent.tsx
+'use client';
+
+import ReactMarkdown from 'react-markdown';
+import Image from 'next/image';
+
+const components = {
+  h2: ({ node, ...props }) => (
+    <h2 className="font-display text-2xl md:text-3xl text-ink mt-12 mb-4" {...props} />
+  ),
+  h3: ({ node, ...props }) => (
+    <h3 className="font-display text-xl md:text-2xl text-ink mt-8 mb-3" {...props} />
+  ),
+  p: ({ node, ...props }) => {
+    // First paragraph: drop cap
+    const isFirst = node?.position?.start.line === 1;
+    return (
+      <p className={isFirst 
+        ? "text-lg leading-relaxed text-ink/80 first-letter:text-6xl first-letter:font-display first-letter:text-clay first-letter:me-2 first-letter:float-start first-letter:leading-none mb-6"
+        : "text-lg leading-relaxed text-ink/80 mb-6"
+      } {...props} />
+    );
+  },
+  blockquote: ({ node, ...props }) => (
+    <blockquote className="border-s-4 border-saffron ps-6 my-8 italic text-xl text-ink/70 font-display" {...props} />
+  ),
+  ul: ({ node, ...props }) => (
+    <ul className="list-disc list-inside space-y-2 my-6 text-ink/80" {...props} />
+  ),
+  ol: ({ node, ...props }) => (
+    <ol className="list-decimal list-inside space-y-2 my-6 text-ink/80" {...props} />
+  ),
+  img: ({ node, src, alt, ...props }) => (
+    <figure className="my-8">
+      <div className="relative aspect-[16/9] rounded-lg overflow-hidden">
+        <Image src={src as string} alt={alt ?? ''} fill className="object-cover" />
+      </div>
+      {alt && <figcaption className="text-sm text-stone text-center mt-2 italic">{alt}</figcaption>}
+    </figure>
+  ),
+  strong: ({ node, ...props }) => (
+    <strong className="font-semibold text-ink" {...props} />
+  ),
+  em: ({ node, ...props }) => (
+    <em className="italic text-ink/70" {...props} />
+  ),
+  a: ({ node, ...props }) => (
+    <a className="text-teal underline underline-offset-2 hover:text-clay transition-colors" target="_blank" rel="noopener noreferrer" {...props} />
+  ),
+};
+
+export function LetterContent({ content }: { content: string }) {
+  return (
+    <article className="prose prose-lg max-w-2xl mx-auto">
+      <ReactMarkdown components={components}>{content}</ReactMarkdown>
+    </article>
+  );
+}
+```
+
+### Share Buttons
+
+```tsx
+// src/components/lamma/letters/ShareButtons.tsx
+'use client';
+
+import { Twitter, Facebook, Link2, Check } from 'lucide-react';
+import { useState } from 'react';
+import { useTranslations } from 'next-intl';
+
+export function ShareButtons({ url, title }: { url: string; title: string }) {
+  const t = useTranslations('letters');
+  const [copied, setCopied] = useState(false);
+  
+  const shareUrl = typeof window !== 'undefined' ? `${window.location.origin}${url}` : url;
+  
+  const handleCopy = async () => {
+    await navigator.clipboard.writeText(shareUrl);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+  
+  return (
+    <div className="flex items-center gap-3">
+      <span className="text-sm text-stone">{t('share')}:</span>
+      <a
+        href={`https://twitter.com/intent/tweet?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(title)}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="size-9 rounded-full bg-sand hover:bg-stone/20 flex items-center justify-center transition-colors"
+        aria-label="Twitter"
+      >
+        <Twitter className="size-4" />
+      </a>
+      <a
+        href={`https://facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="size-9 rounded-full bg-sand hover:bg-stone/20 flex items-center justify-center transition-colors"
+        aria-label="Facebook"
+      >
+        <Facebook className="size-4" />
+      </a>
+      <button
+        onClick={handleCopy}
+        className="size-9 rounded-full bg-sand hover:bg-stone/20 flex items-center justify-center transition-colors"
+        aria-label={t('copyLink')}
+      >
+        {copied ? <Check className="size-4 text-success" /> : <Link2 className="size-4" />}
+      </button>
+    </div>
+  );
+}
+```
+
+### Author Bio Card
+
+في نهاية المقال:
+
+```tsx
+<Card className="mt-12 p-6 bg-paper">
+  <div className="flex items-start gap-4">
+    <Avatar className="size-16">
+      <AvatarImage src={author.avatarUrl} alt={localized(author.displayName)} />
+    </Avatar>
+    <div className="flex-1">
+      <p className="text-sm text-stone mb-1">{t('letters.aboutAuthor')}</p>
+      <h3 className="font-display text-xl mb-2">
+        <Link href={`/hosts/${author.handle}`} className="hover:text-clay transition-colors">
+          {localized(author.displayName)}
+        </Link>
+      </h3>
+      <p className="text-sm text-ink/70 line-clamp-3">{localized(author.bio)}</p>
+    </div>
+  </div>
+</Card>
+```
+
+---
+
+## 📄 الصفحة 7: "عن لَمَّة" (`/[locale]/about`)
+
+### التخطيط (editorial brand story)
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│ HERO (centered, max-w-4xl):                                  │
+│   - "لَمَّة" بخط Fraunces ضخم (96px)                          │
+│   - Tagline: "تجمعات حميمية في الكويت"                       │
+│   - Subtitle: "نحن لا نبني تطبيقات CRUD..."                  │
+├──────────────────────────────────────────────────────────────┤
+│ Sections (centered, max-w-2xl, prose):                       │
+│   - "الفلسفة" — المبادئ الأربعة (حميمية، تحرير، مجتمع، ثقافة)│
+│   - "القصة" — كيف بدأت الفكرة (inspired by الديوانية + 2025)│
+│   - "لماذا الآن؟" — 5 أسباب من ملف التوثيق                   │
+│   - "الشخصيات" — 4 user personas كقائمة بطاقات               │
+├──────────────────────────────────────────────────────────────┤
+│ CTA: "اكتشف لماتنا" → /gatherings                            │
+└──────────────────────────────────────────────────────────────┘
+```
+
+المحتوى من قسم 1, 2, 3, 4 من `/home/z/my-project/reference/Lamma-Project-Full-Documentation.md`.
+
+---
+
+## 📄 الصفحة 8: أسئلة شائعة (`/[locale]/faq`)
+
+### التخطيط
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│ Page Header:                                                  │
+│   - Title: "أسئلة شائعة" (h1)                                 │
+│   - Subtitle: "كل ما تريد معرفته عن لَمَّة"                  │
+├──────────────────────────────────────────────────────────────┤
+│ Categories (accordion):                                       │
+│   ▼ عام (4-5 أسئلة)                                          │
+│   ▼ التجمعات والحضور (5-6 أسئلة)                              │
+│   ▼ أصحاب التجمعات (3-4 أسئلة)                                │
+│   ▼ المدفوعات والإلغاء (3-4 أسئلة)                            │
+│   ▼ التقنية والخصوصية (2-3 أسئلة)                             │
+├──────────────────────────────────────────────────────────────┤
+│ CTA: "لم تجد إجابتك؟" → /contact (placeholder)              │
+└──────────────────────────────────────────────────────────────┘
+```
+
+استخدم shadcn Accordion. اكتب 18-22 سؤال وجواب حقيقية (بالعربية والإنجليزية) مستندة إلى ملف التوثيق:
+
+**أمثلة أسئلة:**
+- "ما هي لَمَّة؟"
+- "كيف يختلف الحضور بنظام الطلب عن الشراء المباشر؟"
+- "هل الدفع إلزامي قبل الموافقة؟"
+- "ماذا يحدث إذا رُفض طلبي؟"
+- "كيف تحترم لَمَّة مواقيت الصلاة؟"
+- "هل يمكنني حضور لمة مختلطة؟"
+- "كيف أصبح صاحب تجمع؟"
+- "ما هي مستويات العضوية؟"
+- "كيف يعمل الذكاء الاصطناعي في المطابقة؟"
+- "ما سياسة الإلغاء والاسترجاع؟"
+- "هل بياناتي آمنة؟"
+
+أضف كل المفاتيح لـ `messages/*.json`.
+
+---
+
+## 🔗 ربط الـ Homepage والـ Header
+
+### Homepage (`src/app/[locale]/page.tsx`)
+- قسم "أصحاب التجمعات": البطاقات روابط لـ `/hosts/${handle}`
+- قسم "المواضيع التحريرية": البطاقات روابط لـ `/topics/${slug}`
+- قسم "رسائل من لمة": البطاقات روابط لـ `/letters/${slug}`
+- "اللمة المميزة" بالفعل مربوطة من 1A (تحقّق)
+- "اقرأ المزيد من الرسائل" CTA → `/letters`
+
+### Header (`src/components/lamma/SiteHeader.tsx`)
+- "تجمعات" → `/gatherings` (مربوط من 1A)
+- "أصحاب" → `/hosts` (جديد)
+- "مواضيع" → `/topics` (جديد)
+- "رسائل" → `/letters` (جديد)
+- "حسابي" → placeholder `#` (Phase 2)
+
+### Footer (`src/components/lamma/SiteFooter.tsx`)
+- "عن لَمَّة" → `/about`
+- "أسئلة شائعة" → `/faq`
+- "تجمعات" → `/gatherings`
+- "أصحاب" → `/hosts`
+- "مواضيع" → `/topics`
+- "رسائل" → `/letters`
+- روابط السوشيال: تفتح في tab جديد
+
+---
+
+## 📊 إضافة مفاتيح ترجمة جديدة
+
+أضف لـ `messages/ar.json` و `messages/en.json` namespaces الجديدة:
+
+```json
+{
+  "hosts": {
+    "title": "أصحاب التجمعات" / "Hosts",
+    "subtitle": "أشخاص يصنعون لمات لا تُنسى" / "People who craft unforgettable gatherings",
+    "verifiedOnly": "موثّقون فقط" / "Verified only",
+    "filterByTopic": "حسب الموضوع" / "Filter by topic",
+    "stats": "إحصاءات" / "Stats",
+    "totalGatherings": "لمات منظمة" / "Gatherings organized",
+    "totalAttendees": "إجمالي الحضور" / "Total attendees",
+    "avgRating": "متوسط التقييم" / "Average rating",
+    "responseTime": "زمن الرد" / "Response time",
+    "hours": "{count} ساعة" / "{count}h",
+    "upcoming": "اللمات القادمة" / "Upcoming gatherings",
+    "past": "لمات سابقة" / "Past gatherings",
+    "hostLetters": "رسائل من لماتي" / "Letters from my gatherings",
+    "contactHost": "تواصل معه" / "Get in touch",
+    "specialties": "تخصصات" / "Specialties",
+    "noUpcoming": "لا توجد لمات قادمة حالياً" / "No upcoming gatherings",
+    "noPast": "لا توجد لمات سابقة" / "No past gatherings"
+  },
+  "topics": {
+    "title": "مواضيع تحريرية" / "Editorial topics",
+    "subtitle": "تصفّح لَمَّة عبر عدسات متعددة" / "Browse Lamma through multiple lenses",
+    "gatheringsCount": "لمة" / "gatherings",
+    "lettersCount": "رسالة" / "letters",
+    "upcomingGatherings": "قادمة" / "upcoming",
+    "pastGatherings": "سابقة" / "past",
+    "upcoming": "لمات قادمة" / "Upcoming gatherings",
+    "past": "لمات سابقة" / "Past gatherings",
+    "letters": "رسائل" / "Letters",
+    "noGatherings": "لا توجد لمات في هذا الموضوع" / "No gatherings in this topic yet",
+    "noLetters": "لا توجد رسائل في هذا الموضوع" / "No letters in this topic yet"
+  },
+  "letters": {
+    "title": "رسائل من لمة" / "Letters from a gathering",
+    "subtitle": "حكايات تُروى بعد كل تجمّع" / "Stories told after every gathering",
+    "description": "كل لمة تترك أثراً، وهذه الرسائل تحفظ ذلك الأثر..." / "...",
+    "featured": "الرسالة المميزة" / "Featured letter",
+    "minRead": "دقائق قراءة" / "min read",
+    "share": "شارك" / "Share",
+    "copyLink": "انسخ الرابط" / "Copy link",
+    "linkCopied": "تم نسخ الرابط" / "Link copied",
+    "aboutAuthor": "عن الكاتب" / "About the author",
+    "moreLetters": "رسائل أخرى" / "More letters",
+    "readMore": "اقرأ المزيد" / "Read more",
+    "publishedOn": "نُشر في" / "Published on"
+  },
+  "about": {
+    "title": "عن لَمَّة" / "About Lamma",
+    "tagline": "تجمعات حميمية في الكويت" / "Intimate gatherings in Kuwait",
+    "manifesto": "نحن لا نبني تطبيقات CRUD. نحن نبني منتجات ثقافية. لَمَّة هي الدليل." / "We don't build CRUD apps. We build cultural products. Lamma is the proof.",
+    "philosophy": "الفلسفة" / "Philosophy",
+    "story": "القصة" / "The story",
+    "whyNow": "لماذا الآن؟" / "Why now?",
+    "personas": "الشخصيات" / "Personas",
+    "principle1Title": "الحميمية على الحجم" / "Intimacy over scale",
+    "principle1Desc": "..." / "...",
+    "principle2Title": "التحرير على المعاملات" / "Editorial over transactional",
+    "principle2Desc": "..." / "...",
+    "principle3Title": "المجتمع على الجمهور" / "Community over audience",
+    "principle3Desc": "..." / "...",
+    "principle4Title": "الوعي الثقافي على العمومية" / "Cultural awareness over generic",
+    "principle4Desc": "..." / "..."
+  },
+  "faq": {
+    "title": "أسئلة شائعة" / "Frequently asked questions",
+    "subtitle": "كل ما تريد معرفته عن لَمَّة" / "Everything you want to know about Lamma",
+    "categories": {
+      "general": "عام" / "General",
+      "gatherings": "التجمعات والحضور" / "Gatherings & attendance",
+      "hosts": "أصحاب التجمعات" / "Hosts",
+      "payments": "المدفوعات والإلغاء" / "Payments & cancellation",
+      "tech": "التقنية والخصوصية" / "Technology & privacy"
+    },
+    "notFound": "لم تجد إجابتك؟" / "Didn't find your answer?",
+    "contactCta": "تواصل معنا" / "Contact us"
+  },
+  "specialties": {
+    "history": "تاريخ" / "History",
+    "culture": "ثقافة" / "Culture",
+    "walking-tours": "جولات مشي" / "Walking tours",
+    "photography": "تصوير" / "Photography",
+    "art": "فن" / "Art",
+    "workshops": "ورش" / "Workshops",
+    "food": "طعام" / "Food",
+    "cooking": "طبخ" / "Cooking",
+    "literature": "أدب" / "Literature",
+    "poetry": "شعر" / "Poetry",
+    "music": "موسيقى" / "Music",
+    "networking": "تواصل" / "Networking",
+    "books": "كتب" / "Books"
+  },
+  "notFound": {
+    "title": "ضَلَلْنا الطريق" / "We lost our way",
+    "description": "هذه الصفحة غير موجودة أو ربما انتقلت." / "This page doesn't exist or may have moved.",
+    "cta": "العودة إلى التجمعات" / "Back to gatherings"
+  }
+}
+```
+
+---
+
+## 📋 قائمة التحقق النهائية (Must Pass)
+
+- [ ] `bun run lint` — 0 errors, 0 warnings
+- [ ] dev server يعمل، `dev.log` نظيف
+- [ ] `/[locale]/hosts` يعرض 5 أصحاب مع الفلترة
+- [ ] `/[locale]/hosts/[handle]` يعرض ملف كامل (cover + bio + gatherings + letters)
+- [ ] `/[locale]/topics` يعرض 6 مواضيع بنمط magazine
+- [ ] `/[locale]/topics/[slug]` يعرض hero + tabs (قادمة/سابقة/رسائل)
+- [ ] `/[locale]/letters` يعرض featured letter + grid
+- [ ] `/[locale]/letters/[slug]` يعرض قارئ long-form مع drop cap + share buttons + author bio
+- [ ] `/[locale]/about` يعرض brand story + المبادئ الأربعة + الشخصيات
+- [ ] `/[locale]/faq` يعرض accordion بـ 18+ سؤال
+- [ ] كل البطاقات على الـ homepage مربوطة بروابطها الصحيحة
+- [ ] Header nav كله مربوط (تجمعات/أصحاب/مواضيع/رسائل)
+- [ ] Footer روابطه تعمل (about/faq/gatherings/hosts/topics/letters)
+- [ ] generateMetadata يعمل لكل صفحات `[handle]` و `[slug]`
+- [ ] 404 يعمل عند `/hosts/handle-غير-موجود`
+- [ ] Mobile responsive لكل الصفحات
+- [ ] RTL/LTR يعمل بشكل صحيح
+- [ ] ابدأ Agent Browser: اختبر كل 8 صفحات + روابط الـ homepage + تبديل لغة
+
+---
+
+## 📝 التقرير النهائي المطلوب
+
+1. قائمة الملفات الجديدة/المعدّلة (tree view)
+2. لقطة `bun run lint`
+3. لقطة `curl /api/v1/health`
+4. مثال URL من كل صفحة جديدة مع HTTP status
+5. لقطة من قارئ رسالة يعرض drop cap + blockquote + author bio
+6. لقطة من صفحة topic مع tabs (3 tabs تعمل)
+7. أي قرارات معمارية / انحرافات عن المواصفات
+8. ما الذي يحتاجه Phase 2 (Application flow + Host dashboard) ليعمل فوق هذا
+
+---
+
+## ⚠️ قواعد صارمة
+
+1. **لا تتجاوز نطاق هذه المرحلة** — لا تبني نماذج application/host dashboard (Phase 2)
+2. **كل النصوص في `messages/*.json`** — لا hardcoded strings
+3. **كل البيانات من `src/data/`** — لا hardcoded data
+4. **استخدم `Link` من `@/i18n/routing`** دائماً
+5. **استخدم logical properties** (`ms-`, `me-`, `ps-`, `pe-`)
+6. **كل Image من next/image** — لا `<img>`
+7. **احترم الـ file structure**: `src/components/lamma/{hosts,topics,letters,about,faq}/`
+8. **generateStaticParams** لكل صفحات `[handle]` و `[slug]`
+9. **اكتب worklog في `/home/z/my-project/worklog.md`** (append)
+10. **اقرأ `dev.log` بعد كل تغيير كبير**
+11. **ابدأ Agent Browser قبل الإبلاغ بالانتهاء**
+
+ابدأ الآن.
+```
+
+---

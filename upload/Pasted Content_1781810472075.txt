@@ -1,0 +1,1317 @@
+
+---
+
+# 📨 البرومبت #3B — AI Concierge + Content Enrichment
+
+انسخ البرومبت التالي وأرسله إلى GLM 5.2 Full Stack Agent:
+
+```markdown
+# مهمة: المرحلة 3B — AI Concierge + Content Enrichment
+
+## 📖 السياق والمراجع الإلزامية
+
+المراحل 0, 1A, 1B, 2A, 2B, 3A مكتملة بنجاح. اقرأ أولاً:
+1. `/home/z/my-project/worklog.md` — سجل العمل الكامل
+2. `/home/z/my-project/reference/Lamma-Project-Full-Documentation.md` — قسم 8.10 (Host Concierge Dashboard)
+3. الكود الموجود في:
+   - `src/lib/matching/engine.ts` — TF-IDF engine (المرحلة 3A)
+   - `src/lib/matching/explain.ts` — Explainable AI
+   - `src/data/letters.ts` — 3 رسائل طويلة (2000-3000 كلمة)
+   - `src/data/gatherings.ts` — 8 لمات
+   - `src/components/lamma/host/NewGatheringForm.tsx` — نموذج إنشاء لمة (5 خطوات)
+   - `src/components/lamma/host/ApplicationReviewCard.tsx` — مراجعة الطلبات
+   - `src/components/lamma/gatherings/GatheringsList.tsx` — قائمة اللمات
+4. **مهم:** z-ai-web-dev-sdk للـ backend فقط — لا تستخدمه في client components
+5. **مهم:** shadcn Tabs لها نفس مشكلة Checkbox في WASM — استخدم native buttons أو state-driven rendering
+
+**هذه المرحلة 3B من 8 مراحل. لا تتجاوز نطاقها.**
+
+---
+
+## 🎯 هدف هذه المرحلة بالضبط
+
+إضافة ذكاء LLM حقيقي عبر `z-ai-web-dev-sdk` في 5 ميزات:
+
+1. ✅ **طبقة LLM موحّدة** — wrapper آمن مع fallback + caching
+2. ✅ **AI Concierge Chat** — `/[locale]/dashboard/concierge` (مساعد محادثة)
+3. ✅ **Letter Summaries** — TL;DR تلقائي على كل رسالة
+4. ✅ **Description Enhancer** — زر "تحسين بالـ AI" في NewGatheringForm
+5. ✅ **Application Question Generator** — زر "اقترح أسئلة" في NewGatheringForm
+6. ✅ **Host Review Insight** — insight card في ApplicationReviewCard
+7. ✅ **Natural Language Search** — شريط بحث AI في `/gatherings`
+8. ✅ **Fix Radix Tabs** — استبدال native buttons في كل tabs (Phase 3A issue)
+
+**لا تبني في هذه المرحلة:**
+- ❌ Real-time chat مع WebSocket (Phase 4)
+- ❌ Image analysis (VLM)
+- ❌ AI-generated images (موجودة من Phase 0)
+- ❌ Voice input
+- ❌ Training/fine-tuning
+
+---
+
+## 🤖 طبقة LLM الموحّدة
+
+### الملف: `src/lib/ai/llm-client.ts`
+
+```typescript
+import ZAI from 'z-ai-web-dev-sdk';
+
+// PROD-ONLY: استبدل بـ OpenAI client + API key management
+// الـ interface يبقى كما هو
+
+let zaiClient: Awaited<ReturnType<typeof ZAI.create>> | null = null;
+
+async function getClient() {
+  if (!zaiClient) {
+    zaiClient = await ZAI.create();
+  }
+  return zaiClient;
+}
+
+// In-memory cache (session-scoped)
+// PROD-ONLY: استبدل بـ Redis أو Upstash
+const cache = new Map<string, { value: string; expiresAt: number }>();
+
+const CACHE_TTL = 1000 * 60 * 30; // 30 minutes
+
+function getCached(key: string): string | null {
+  const entry = cache.get(key);
+  if (entry && entry.expiresAt > Date.now()) {
+    return entry.value;
+  }
+  cache.delete(key);
+  return null;
+}
+
+function setCached(key: string, value: string): void {
+  cache.set(key, { value, expiresAt: Date.now() + CACHE_TTL });
+}
+
+export interface LLMOptions {
+  systemPrompt?: string;
+  temperature?: number;
+  maxTokens?: number;
+  cacheKey?: string; // إن وُجد، استخدم الكاش
+  fallback?: string; // نص بديل لو فشل الـ LLM
+}
+
+export async function generateText(prompt: string, options: LLMOptions = {}): Promise<string> {
+  const {
+    systemPrompt = 'أنت مساعد ذكي لمنصة "لَمَّة" الكويتية للتجمعات الحميمية. تجيب بإيجاز وبأسلوب راقٍ يحترم الثقافة الكويتية.',
+    temperature = 0.7,
+    maxTokens = 500,
+    cacheKey,
+    fallback = 'عذراً، تعذّر توليد الرد حالياً. حاول مرة أخرى لاحقاً.',
+  } = options;
+  
+  // Check cache
+  if (cacheKey) {
+    const cached = getCached(cacheKey);
+    if (cached) return cached;
+  }
+  
+  try {
+    const client = await getClient();
+    const response = await client.chat.completions.create({
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: prompt },
+      ],
+      temperature,
+      max_tokens: maxTokens,
+    });
+    
+    const result = response.choices[0]?.message?.content ?? fallback;
+    
+    // Cache it
+    if (cacheKey && result !== fallback) {
+      setCached(cacheKey, result);
+    }
+    
+    return result;
+  } catch (error) {
+    console.error('[LLM] Error:', error);
+    return fallback;
+  }
+}
+
+export async function generateJSON<T>(
+  prompt: string,
+  options: LLMOptions = {}
+): Promise<T | null> {
+  const result = await generateText(prompt, {
+    ...options,
+    systemPrompt: options.systemPrompt ?? 'أنت مساعد ذكي. أرجع النتيجة بصيغة JSON صحيحة فقط، بدون نص إضافي أو markdown.',
+  });
+  
+  try {
+    // Try to extract JSON from response
+    const jsonMatch = result.match(/\{[\s\S]*\}|\[[\s\S]*\]/);
+    if (jsonMatch) {
+      return JSON.parse(jsonMatch[0]) as T;
+    }
+    return JSON.parse(result) as T;
+  } catch (e) {
+    console.error('[LLM] JSON parse error:', e);
+    return null;
+  }
+}
+
+// Helper: build locale-aware prompt
+export function withLocale(locale: 'ar' | 'en', prompt: string): string {
+  return locale === 'ar'
+    ? `${prompt}\n\nأجب باللغة العربية الفصحى بأسلوب راقٍ.`
+    : `${prompt}\n\nRespond in English with an elegant editorial tone.`;
+}
+```
+
+### Health check endpoint
+
+`src/app/api/v1/ai/health/route.ts`:
+
+```typescript
+import { NextResponse } from 'next/server';
+import { generateText } from '@/lib/ai/llm-client';
+
+export async function GET() {
+  try {
+    const result = await generateText('قل: "أهلاً"', {
+      maxTokens: 20,
+      cacheKey: 'ai-health-check',
+    });
+    
+    return NextResponse.json({
+      status: 'ok',
+      llm: 'connected',
+      response: result,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    return NextResponse.json(
+      { status: 'degraded', llm: 'unavailable', error: String(error) },
+      { status: 503 }
+    );
+  }
+}
+```
+
+---
+
+## 🧠 5 خدمات AI متخصصة
+
+أنشئ ملف لكل خدمة في `src/lib/ai/services/`:
+
+### 1. Concierge Service (`src/lib/ai/services/concierge.ts`)
+
+```typescript
+import { generateText } from '../llm-client';
+import { recommendGatheringsForUser, explainRecommendation } from '@/lib/matching/engine';
+import { gatherings } from '@/data/gatherings';
+import { topics } from '@/data/topics';
+import { demoUsers, type DemoUser } from '@/data/demo-users';
+
+interface ConciergeContext {
+  user: DemoUser | null;
+  locale: 'ar' | 'en';
+}
+
+export async function askConcierge(
+  question: string,
+  context: ConciergeContext
+): Promise<string> {
+  const { user, locale } = context;
+  
+  // Build context info for the LLM
+  let userContext = '';
+  if (user) {
+    const recs = recommendGatheringsForUser(user, { limit: 3 });
+    userContext = `
+معلومات المستخدم:
+- الاسم: ${user.nameLocalized[locale]}
+- الاهتمامات: ${user.interests.join('، ')}
+- مستوى العضوية: ${user.membershipTier}
+- عدد اللمات السابقة: ${user.attendedCount}
+
+توصيات مخصصة للمستخدم:
+${recs.map(({ gathering, score }) => 
+  `- ${gathering.title[locale]} (نتيجة المطابقة: ${score}%)`
+).join('\n')}
+`.trim();
+  }
+  
+  const availableGatherings = gatherings
+    .filter(g => g.status === 'APPLICATIONS_OPEN' || g.status === 'PUBLISHED')
+    .map(g => `- ${g.title[locale]} | ${g.topicSlug} | ${g.format} | ${g.isFree ? 'مجاني' : g.priceKwd + ' KWD'} | سعة ${g.capacityMax} شخص`)
+    .join('\n');
+  
+  const prompt = `
+سؤال المستخدم: "${question}"
+
+${userContext}
+
+اللمات المتاحة حالياً:
+${availableGatherings}
+
+المواضيع التحريرية المتاحة:
+${topics.map(t => `- ${t.slug}: ${t.name[locale]}`).join('\n')}
+
+تعليمات:
+- اجب بناءً على اللمات المتاحة فقط
+- إن لم تجد لمة مناسبة، اشرح ذلك بأسلوب لطيف واقترح بديلاً
+- إن كان السؤال عاماً، أعطِ معلومات عن لَمَّة كمنصة
+- لا تختلق لمات غير موجودة
+- اجب بأسلوب تحريري راقٍ يحترم الثقافة الكويتية
+- اجب بإيجاز (3-5 جمل كحد أقصى)
+`;
+  
+  const systemPrompt = locale === 'ar'
+    ? 'أنت "لامّة"، مساعدة ذكية لمنصة لَمَّة الكويتية للتجمعات الحميمية. تجيبين بإيجاز وأسلوب راقٍ. تحترمين الثقافة الكويتية ومواقيت الصلاة. تستخدمين "أنتِ" عند مخاطبة المستخدم.'
+    : 'You are "Lamma", an AI assistant for the Lamma Kuwaiti intimate gatherings platform. You respond briefly with elegant editorial tone, respecting Kuwaiti culture and prayer times.';
+  
+  return generateText(prompt, {
+    systemPrompt,
+    temperature: 0.6,
+    maxTokens: 400,
+    cacheKey: user ? undefined : `concierge-${locale}-${question.slice(0, 50)}`,
+  });
+}
+```
+
+### 2. Letter Summarizer (`src/lib/ai/services/summarize-letter.ts`)
+
+```typescript
+import { generateText } from '../llm-client';
+
+export async function summarizeLetter(
+  content: string,
+  title: string,
+  locale: 'ar' | 'en'
+): Promise<string> {
+  const prompt = `
+لخّص المقال التالي في فقرة واحدة (50-80 كلمة) بأسلوب تحريري جذّاب يكفي لجعل القارئ يرغب بقراءة المقال كاملاً.
+
+العنوان: ${title}
+
+المقال:
+${content.slice(0, 3000)}  // حد للحفاظ على الـ tokens
+
+الملخص يجب أن:
+- يكون فقرة واحدة فقط
+- يكشف عن جوهر المقال دون حرق النهاية
+- يستخدم لغة شاعرية تحريرية
+- يكون بلهجة ${locale === 'ar' ? 'عربية فصحى' : 'إنجليزية راقية'}
+`;
+  
+  return generateText(prompt, {
+    temperature: 0.4,
+    maxTokens: 200,
+    cacheKey: `letter-summary-${locale}-${title.slice(0, 30)}`,
+    fallback: locale === 'ar' 
+      ? 'ملخص هذا المقال التحريري غير متاح حالياً. ننصح بقراءته كاملاً للاستمتاع بتفاصيله.'
+      : 'Summary unavailable. We recommend reading the full article.',
+  });
+}
+```
+
+### 3. Description Enhancer (`src/lib/ai/services/enhance-description.ts`)
+
+```typescript
+import { generateText } from '../llm-client';
+
+interface EnhanceInput {
+  title: string;
+  topic: string;
+  format: string;
+  currentDescription: string;
+  locale: 'ar' | 'en';
+}
+
+export async function enhanceDescription(input: EnhanceInput): Promise<string> {
+  const { title, topic, format, currentDescription, locale } = input;
+  
+  const prompt = `
+حسّن الوصف التحريري لهذه اللمة ليجعل القارئ يشعر بالحميمية والرغبة في الحضور.
+
+معلومات اللمة:
+- العنوان: ${title}
+- الموضوع: ${topic}
+- الصيغة: ${format}
+
+الوصف الحالي:
+"${currentDescription}"
+
+تعليمات:
+- اكتب وصفاً تحريفياً فاخراً (200-300 كلمة)
+- استخدم إيقاعاً شعرياً دون تكلف
+- ابدأ بجملة افتتاحية قوية
+- اذكر تفصيلاً حسياً واحداً على الأقل (صوت، رائحة، ضوء)
+- اربط اللمة بقيمتها الثقافية الكويتية
+- اختم بدعوة ضمنية للحضور
+- ${locale === 'ar' ? 'اكتب بالعربية الفصحى بأسلوب أدبي راقٍ' : 'Write in English with literary elegance'}
+`;
+  
+  return generateText(prompt, {
+    temperature: 0.7,
+    maxTokens: 500,
+    fallback: currentDescription, // استخدم الأصلي لو فشل
+  });
+}
+```
+
+### 4. Question Generator (`src/lib/ai/services/suggest-questions.ts`)
+
+```typescript
+import { generateJSON } from '../llm-client';
+
+interface SuggestedQuestion {
+  id: string;
+  question: { ar: string; en: string };
+  type: 'text' | 'textarea' | 'select';
+  required: boolean;
+  options?: string[];
+}
+
+export async function suggestApplicationQuestions(
+  gatheringInfo: { title: string; topic: string; format: string },
+  locale: 'ar' | 'en'
+): Promise<SuggestedQuestion[]> {
+  const prompt = `
+اقترح 3-4 أسئلة مخصصة لطلب الحضور على هذه اللمة:
+
+معلومات اللمة:
+- العنوان: ${gatheringInfo.title}
+- الموضوع: ${gatheringInfo.topic}
+- الصيغة: ${gatheringInfo.format}
+
+تعليمات:
+- الأسئلة يجب أن تساعد صاحب التجمع في تقييم ملاءمة المتقدم
+- تجنب الأسئلة العامة (الاسم، البريد)
+- ركّز على الدافع، الخلفية، التوقعات
+- نوع السؤال: text (إجابة قصيرة)، textarea (إجابة طويلة)، select (اختيار)
+
+أرجع النتيجة بصيغة JSON صالحة فقط:
+{
+  "questions": [
+    {
+      "id": "q1",
+      "question": { "ar": "...", "en": "..." },
+      "type": "textarea",
+      "required": true
+    }
+  ]
+}
+`;
+  
+  const result = await generateJSON<{ questions: SuggestedQuestion[] }>(prompt, {
+    temperature: 0.8,
+    maxTokens: 600,
+    fallback: '[]',
+  });
+  
+  return result?.questions ?? [];
+}
+```
+
+### 5. Review Insight (`src/lib/ai/services/review-insight.ts`)
+
+```typescript
+import { generateText } from '../llm-client';
+import { computeMatchScore, findSimilarAttendees, findSharedInterests } from '@/lib/matching/engine';
+import { demoUsers, type DemoUser } from '@/data/demo-users';
+import type { Gathering } from '@/data/gatherings';
+
+interface InsightInput {
+  applicant: DemoUser;
+  gathering: Gathering;
+  locale: 'ar' | 'en';
+}
+
+export async function generateReviewInsight(input: InsightInput): Promise<string> {
+  const { applicant, gathering, locale } = input;
+  
+  const matchScore = computeMatchScore(applicant, gathering);
+  const similarAttendees = findSimilarAttendees(applicant, gathering.slug, 3);
+  const sharedInterests = similarAttendees.length > 0
+    ? findSharedInterests(applicant, similarAttendees[0].user)
+    : [];
+  
+  const prompt = `
+أعطِ صاحب التجمع رؤية ذكية ومختصرة (جملتان كحد أقصى) عن هذا المتقدم:
+
+معلومات المتقدم:
+- الاسم: ${applicant.nameLocalized[locale]}
+- الاهتمامات: ${applicant.interests.join('، ')}
+- مستوى العضوية: ${applicant.membershipTier}
+- عدد اللمات السابقة: ${applicant.attendedCount}
+- نتيجة المطابقة: ${matchScore}%
+
+اللمة: ${gathering.title[locale]} (${gathering.topicSlug})
+- الحاضرون المشابهون: ${similarAttendees.length} أشخاص
+- أبرز اهتمام مشترك: ${sharedInterests[0] ?? 'لا يوجد'}
+
+تعليمات:
+- جملتان فقط (20-30 كلمة)
+- ابدأ بتقييم عام ("متقدّم واعد" / "يحتاج مراجعة")
+- اذكر ميزة واحدة محددة
+- ${locale === 'ar' ? 'بأسلوب مهني مباشر' : 'in a professional, direct tone'}
+
+مثال: "متقدّم واعد يشارك 3 اهتمامات مع الحاضرين المقبولين. خبرته في التصوير قد تثري النقاشات."
+`;
+  
+  return generateText(prompt, {
+    temperature: 0.5,
+    maxTokens: 100,
+    cacheKey: `review-insight-${applicant.id}-${gathering.slug}-${locale}`,
+    fallback: locale === 'ar'
+      ? `متقدم بنتيجة مطابقة ${matchScore}%. يرجى مراجعة الدافع والخلفية بعناية.`
+      : `Applicant with ${matchScore}% match. Please review motivation and background carefully.`,
+  });
+}
+```
+
+### 6. Natural Language Search (`src/lib/ai/services/search.ts`)
+
+```typescript
+import { generateJSON } from '../llm-client';
+import { gatherings } from '@/data/gatherings';
+import { topics } from '@/data/topics';
+
+interface SearchFilters {
+  topics: string[];
+  formats: string[];
+  priceRange: 'free' | 'paid' | 'all';
+  keywords: string[];
+}
+
+export async function parseNaturalLanguageSearch(
+  query: string,
+  locale: 'ar' | 'en'
+): Promise<SearchFilters> {
+  const availableTopics = topics.map(t => `${t.slug} (${t.name.ar} / ${t.name.en})`).join(', ');
+  const availableFormats = 'MEN_ONLY, WOMEN_ONLY, FAMILY, MIXED';
+  
+  const prompt = `
+حلّل استعلام البحث التالي واستخرج الفلاتر المناسبة:
+
+استعلام المستخدم: "${query}"
+
+المواضيع المتاحة: ${availableTopics}
+الصيغ المتاحة: ${availableFormats}
+
+تعليمات:
+- استخرج المواضيع ذات الصلة (slug فقط من القائمة المتاحة)
+- استخرج الصيغة المطلوبة (رجال/نساء → MEN_ONLY/WOMEN_ONLY، عائلات → FAMILY، مختلط → MIXED)
+- حدد إن كان المستخدم يبحث عن مجاني أو مدفوع
+- استخرج كلمات مفتاحية إضافية للبحث النصي
+
+أرجع JSON صالح فقط:
+{
+  "topics": ["slug1", "slug2"],
+  "formats": ["MIXED"],
+  "priceRange": "free" | "paid" | "all",
+  "keywords": ["كلمة1", "كلمة2"]
+}
+
+إن كان الاستعلام عاماً أو غير واضح، أرجع مصفوفات فارغة و priceRange="all".
+`;
+  
+  const result = await generateJSON<SearchFilters>(prompt, {
+    temperature: 0.2,
+    maxTokens: 200,
+    cacheKey: `nl-search-${locale}-${query.slice(0, 40)}`,
+  });
+  
+  return result ?? { topics: [], formats: [], priceRange: 'all', keywords: [] };
+}
+```
+
+---
+
+## 🔌 API Routes
+
+أنشئ 6 endpoints في `src/app/api/v1/ai/`:
+
+```
+src/app/api/v1/ai/
+├── health/route.ts              # GET — health check
+├── concierge/route.ts           # POST — chat
+├── summarize-letter/route.ts    # POST — letter summary
+├── enhance-description/route.ts # POST — enhance gathering description
+├── suggest-questions/route.ts   # POST — suggest application questions
+├── review-insight/route.ts      # POST — host review insight
+└── search/route.ts              # POST — natural language search
+```
+
+كل endpoint:
+- يستخدم Zod للتحقق من المدخلات
+- يرجع `{ success: boolean, ... }`
+- يتعامل مع الأخطاء بأنيقة
+
+مثال (concierge):
+
+```typescript
+// src/app/api/v1/ai/concierge/route.ts
+import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
+import { askConcierge } from '@/lib/ai/services/concierge';
+import { demoUsers } from '@/data/demo-users';
+
+const BodySchema = z.object({
+  question: z.string().min(3).max(500),
+  userId: z.string().optional(),
+  locale: z.enum(['ar', 'en']).default('ar'),
+});
+
+export async function POST(req: NextRequest) {
+  try {
+    const body = await req.json();
+    const { question, userId, locale } = BodySchema.parse(body);
+    
+    const user = userId ? demoUsers.find(u => u.id === userId) ?? null : null;
+    
+    const answer = await askConcierge(question, { user, locale });
+    
+    return NextResponse.json({
+      success: true,
+      answer,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    return NextResponse.json(
+      { success: false, error: 'Invalid request' },
+      { status: 400 }
+    );
+  }
+}
+```
+
+---
+
+## 🎨 المكونات الجديدة
+
+### 1. ConciergeChat (`src/components/lamma/ai/ConciergeChat.tsx`)
+
+مساعد محادثة كامل في `/dashboard/concierge`:
+
+```tsx
+'use client';
+
+import { useState, useRef, useEffect } from 'react';
+import { useAuthStore } from '@/lib/auth-store';
+import { useTranslations } from 'next-intl';
+import { Send, Sparkles, User, Lamma } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { cn } from '@/lib/utils';
+
+interface Message {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: string;
+}
+
+const SUGGESTED_QUESTIONS = [
+  { ar: 'أي لمة تناسب اهتماماتي؟', en: 'Which gathering fits my interests?' },
+  { ar: 'ما هي فلسفة لَمَّة؟', en: 'What is Lamma\'s philosophy?' },
+  { ar: 'هل هناك لمة موسيقية قادمة؟', en: 'Is there an upcoming music gathering?' },
+  { ar: 'لمات مجانية هذا الشهر؟', en: 'Free gatherings this month?' },
+];
+
+export function ConciergeChat() {
+  const t = useTranslations('concierge');
+  const { user, hasHydrated } = useAuthStore();
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [input, setInput] = useState('');
+  const [loading, setLoading] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [messages, loading]);
+  
+  const send = async (question: string) => {
+    if (!question.trim() || loading) return;
+    
+    const userMsg: Message = {
+      id: `u-${Date.now()}`,
+      role: 'user',
+      content: question,
+      timestamp: new Date().toISOString(),
+    };
+    
+    setMessages(prev => [...prev, userMsg]);
+    setInput('');
+    setLoading(true);
+    
+    try {
+      const res = await fetch('/api/v1/ai/concierge', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          question,
+          userId: user?.id,
+          locale: 'ar', // استخدم الـ locale الحالي
+        }),
+      });
+      const data = await res.json();
+      
+      const assistantMsg: Message = {
+        id: `a-${Date.now()}`,
+        role: 'assistant',
+        content: data.answer || t('errorFallback'),
+        timestamp: new Date().toISOString(),
+      };
+      
+      setMessages(prev => [...prev, assistantMsg]);
+    } catch (err) {
+      setMessages(prev => [...prev, {
+        id: `e-${Date.now()}`,
+        role: 'assistant',
+        content: t('errorFallback'),
+        timestamp: new Date().toISOString(),
+      }]);
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  return (
+    <div className="flex flex-col h-[calc(100vh-200px)] max-h-[700px]">
+      {/* Header */}
+      <div className="flex items-center gap-3 p-4 border-b border-stone/20 bg-paper rounded-t-xl">
+        <div className="size-10 rounded-full bg-clay/10 flex items-center justify-center">
+          <Sparkles className="size-5 text-clay" />
+        </div>
+        <div>
+          <h2 className="font-display text-lg">{t('title')}</h2>
+          <p className="text-xs text-stone">{t('subtitle')}</p>
+        </div>
+      </div>
+      
+      {/* Messages */}
+      <ScrollArea className="flex-1 p-4 bg-sand/30" ref={scrollRef}>
+        {messages.length === 0 ? (
+          <div className="text-center py-12">
+            <div className="inline-flex items-center justify-center size-16 rounded-full bg-clay/10 mb-4">
+              <Sparkles className="size-8 text-clay" />
+            </div>
+            <h3 className="font-display text-xl mb-2">{t('welcomeTitle')}</h3>
+            <p className="text-stone text-sm mb-6 max-w-md mx-auto">{t('welcomeSubtitle')}</p>
+            <div className="grid sm:grid-cols-2 gap-2 max-w-xl mx-auto">
+              {SUGGESTED_QUESTIONS.map((q, i) => (
+                <Button
+                  key={i}
+                  variant="outline"
+                  size="sm"
+                  className="justify-start text-start"
+                  onClick={() => send(q.ar)}
+                >
+                  {q.ar}
+                </Button>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {messages.map(msg => (
+              <div
+                key={msg.id}
+                className={cn(
+                  'flex gap-3',
+                  msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'
+                )}
+              >
+                <div className={cn(
+                  'size-8 rounded-full flex items-center justify-center flex-shrink-0',
+                  msg.role === 'user' ? 'bg-teal/10' : 'bg-clay/10'
+                )}>
+                  {msg.role === 'user' 
+                    ? <User className="size-4 text-teal" />
+                    : <Sparkles className="size-4 text-clay" />
+                  }
+                </div>
+                <div className={cn(
+                  'max-w-[80%] p-3 rounded-2xl',
+                  msg.role === 'user'
+                    ? 'bg-teal text-paper rounded-tr-sm'
+                    : 'bg-paper border border-stone/20 rounded-tl-sm'
+                )}>
+                  <p className="text-sm leading-relaxed">{msg.content}</p>
+                </div>
+              </div>
+            ))}
+            {loading && (
+              <div className="flex gap-3">
+                <div className="size-8 rounded-full bg-clay/10 flex items-center justify-center">
+                  <Sparkles className="size-4 text-clay animate-pulse" />
+                </div>
+                <div className="bg-paper border border-stone/20 p-3 rounded-2xl rounded-tl-sm">
+                  <div className="flex gap-1">
+                    <span className="size-2 bg-stone rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                    <span className="size-2 bg-stone rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                    <span className="size-2 bg-stone rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </ScrollArea>
+      
+      {/* Input */}
+      <div className="p-4 border-t border-stone/20 bg-paper rounded-b-xl">
+        <form
+          onSubmit={(e) => { e.preventDefault(); send(input); }}
+          className="flex gap-2"
+        >
+          <Textarea
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder={t('inputPlaceholder')}
+            className="flex-1 resize-none"
+            rows={2}
+            disabled={loading}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                send(input);
+              }
+            }}
+          />
+          <Button
+            type="submit"
+            size="icon"
+            className="bg-clay hover:bg-clay/90 text-paper self-end"
+            disabled={loading || !input.trim()}
+          >
+            <Send className="size-4" />
+          </Button>
+        </form>
+        <p className="text-xs text-stone mt-2 text-center">
+          {t('disclaimer')}
+        </p>
+      </div>
+    </div>
+  );
+}
+```
+
+### 2. LetterSummary (`src/components/lamma/ai/LetterSummary.tsx`)
+
+يعرض TL;DR على صفحة الرسالة:
+
+```tsx
+'use client';
+
+import { useEffect, useState } from 'react';
+import { Sparkles, Loader2 } from 'lucide-react';
+import { useTranslations } from 'next-intl';
+
+interface Props {
+  letterSlug: string;
+  content: string;
+  title: string;
+  locale: 'ar' | 'en';
+}
+
+export function LetterSummary({ letterSlug, content, title, locale }: Props) {
+  const t = useTranslations('ai');
+  const [summary, setSummary] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  
+  useEffect(() => {
+    let cancelled = false;
+    
+    async function fetchSummary() {
+      try {
+        const res = await fetch('/api/v1/ai/summarize-letter', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ letterSlug, content, title, locale }),
+        });
+        const data = await res.json();
+        if (!cancelled) {
+          setSummary(data.summary || null);
+        }
+      } catch (e) {
+        // silent fail
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    
+    fetchSummary();
+    return () => { cancelled = true; };
+  }, [letterSlug, content, title, locale]);
+  
+  if (loading) {
+    return (
+      <div className="my-8 p-4 bg-sand rounded-lg flex items-center gap-2 text-stone text-sm">
+        <Loader2 className="size-4 animate-spin" />
+        {t('summarizing')}
+      </div>
+    );
+  }
+  
+  if (!summary) return null;
+  
+  return (
+    <div className="my-8 p-5 bg-sand/50 border-s-4 border-clay rounded-lg">
+      <div className="flex items-center gap-2 mb-3">
+        <Sparkles className="size-4 text-clay" />
+        <span className="text-xs uppercase tracking-wider text-clay font-medium">
+          {t('aiSummary')}
+        </span>
+      </div>
+      <p className="text-base leading-relaxed text-ink/80 italic">
+        {summary}
+      </p>
+    </div>
+  );
+}
+```
+
+أضفه في صفحة `/letters/[slug]` بين العنوان والمحتوى.
+
+### 3. AIEnhanceButton + AISuggestQuestionsButton
+
+للـ NewGatheringForm:
+
+```tsx
+// src/components/lamma/ai/AIEnhanceButton.tsx
+'use client';
+
+import { useState } from 'react';
+import { Sparkles, Loader2, Check } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { useTranslations } from 'next-intl';
+
+interface Props {
+  endpoint: string;
+  payload: Record<string, unknown>;
+  onResult: (result: string) => void;
+  label: string;
+  variant?: 'default' | 'outline';
+}
+
+export function AIActionButton({ endpoint, payload, onResult, label, variant = 'outline' }: Props) {
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const t = useTranslations('ai');
+  
+  const handleClick = async () => {
+    setLoading(true);
+    setSuccess(false);
+    
+    try {
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      
+      if (data.success && data.result) {
+        onResult(data.result);
+        setSuccess(true);
+        setTimeout(() => setSuccess(false), 2000);
+      }
+    } catch (e) {
+      // silent fail
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  return (
+    <Button
+      type="button"
+      variant={variant}
+      size="sm"
+      onClick={handleClick}
+      disabled={loading}
+      className="border-clay text-clay hover:bg-clay/10"
+    >
+      {loading ? (
+        <Loader2 className="size-3.5 me-1.5 animate-spin" />
+      ) : success ? (
+        <Check className="size-3.5 me-1.5 text-success" />
+      ) : (
+        <Sparkles className="size-3.5 me-1.5" />
+      )}
+      {loading ? t('generating') : success ? t('done') : label}
+    </Button>
+  );
+}
+```
+
+في `NewGatheringForm`:
+- في Step 4 (editorial content), أضف `<AIEnhanceButton>` بجانب حقل `description`
+- عند النقر، يستدعي `/api/v1/ai/enhance-description` ويستبدل المحتوى
+- أضف أيضاً `<AIActionButton>` لـ "اقترح أسئلة" بجانب `applicationQuestions`
+- عند النقر، يستدعي `/api/v1/ai/suggest-questions` ويضيف الأسئلة لـ array
+
+### 4. AIReviewInsight (`src/components/lamma/ai/AIReviewInsight.tsx`)
+
+في `ApplicationReviewCard`:
+
+```tsx
+'use client';
+
+import { useEffect, useState } from 'react';
+import { Sparkles, Loader2 } from 'lucide-react';
+import { useTranslations } from 'next-intl';
+
+interface Props {
+  applicantId: string;
+  gatheringSlug: string;
+  locale: 'ar' | 'en';
+}
+
+export function AIReviewInsight({ applicantId, gatheringSlug, locale }: Props) {
+  const t = useTranslations('ai');
+  const [insight, setInsight] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  
+  useEffect(() => {
+    let cancelled = false;
+    
+    async function fetchInsight() {
+      try {
+        const res = await fetch('/api/v1/ai/review-insight', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ applicantId, gatheringSlug, locale }),
+        });
+        const data = await res.json();
+        if (!cancelled) setInsight(data.insight || null);
+      } catch (e) {}
+      finally { if (!cancelled) setLoading(false); }
+    }
+    
+    fetchInsight();
+    return () => { cancelled = true; };
+  }, [applicantId, gatheringSlug, locale]);
+  
+  if (loading) {
+    return (
+      <div className="flex items-center gap-2 text-xs text-stone p-2">
+        <Loader2 className="size-3 animate-spin" />
+        {t('analyzingApplicant')}
+      </div>
+    );
+  }
+  
+  if (!insight) return null;
+  
+  return (
+    <div className="flex items-start gap-2 p-3 bg-clay/5 border-s-2 border-clay rounded-r-lg">
+      <Sparkles className="size-4 text-clay flex-shrink-0 mt-0.5" />
+      <div>
+        <p className="text-xs uppercase tracking-wider text-clay font-medium mb-1">
+          {t('aiInsight')}
+        </p>
+        <p className="text-sm text-ink/80 leading-relaxed">{insight}</p>
+      </div>
+    </div>
+  );
+}
+```
+
+أضفه في `ApplicationReviewCard` بين match score bar و motivation preview.
+
+### 5. NLSearchBar (`src/components/lamma/ai/NLSearchBar.tsx`)
+
+شريط بحث AI في صفحة `/gatherings`:
+
+```tsx
+'use client';
+
+import { useState } from 'react';
+import { Search, Sparkles, Loader2, X } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { useTranslations } from 'next-intl';
+
+interface Props {
+  onFiltersApplied: (filters: {
+    topics: string[];
+    formats: string[];
+    priceRange: 'free' | 'paid' | 'all';
+    keywords: string[];
+  }) => void;
+}
+
+export function NLSearchBar({ onFiltersApplied }: Props) {
+  const t = useTranslations('ai');
+  const [query, setQuery] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [active, setActive] = useState(false);
+  
+  const handleSearch = async () => {
+    if (!query.trim()) return;
+    setLoading(true);
+    
+    try {
+      const res = await fetch('/api/v1/ai/search', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query, locale: 'ar' }),
+      });
+      const data = await res.json();
+      
+      if (data.success) {
+        onFiltersApplied(data.filters);
+        setActive(true);
+      }
+    } catch (e) {}
+    finally { setLoading(false); }
+  };
+  
+  const clear = () => {
+    setQuery('');
+    setActive(false);
+    onFiltersApplied({ topics: [], formats: [], priceRange: 'all', keywords: [] });
+  };
+  
+  return (
+    <div className="relative">
+      <div className="flex gap-2">
+        <div className="relative flex-1">
+          <Sparkles className="absolute start-3 top-1/2 -translate-y-1/2 size-4 text-clay" />
+          <Input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder={t('nlSearchPlaceholder')}
+            className="ps-9 pe-9 bg-paper border-clay/30"
+            onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+          />
+          {active && (
+            <button
+              onClick={clear}
+              className="absolute end-3 top-1/2 -translate-y-1/2 text-stone hover:text-error"
+            >
+              <X className="size-4" />
+            </button>
+          )}
+        </div>
+        <Button
+          onClick={handleSearch}
+          disabled={loading || !query.trim()}
+          className="bg-clay hover:bg-clay/90 text-paper"
+        >
+          {loading ? <Loader2 className="size-4 animate-spin" /> : <Search className="size-4" />}
+        </Button>
+      </div>
+      <p className="text-xs text-stone mt-1.5 flex items-center gap-1">
+        <Sparkles className="size-3" />
+        {t('nlSearchHint')}
+      </p>
+    </div>
+  );
+}
+```
+
+أضفه في أعلى `/gatherings` (فوق الفلاتر العادية). عند `onFiltersApplied`، يدمج مع الـ URL params الموجودة.
+
+---
+
+## 🛠️ إصلاح مشكلة Radix Tabs في WASM
+
+في كل مكان يستخدم shadcn `Tabs`، استبدلها بـ **native buttons + state**:
+
+```tsx
+// بدل:
+<Tabs defaultValue="people">
+  <TabsList>
+    <TabsTrigger value="people">أشخاص</TabsTrigger>
+    <TabsTrigger value="gatherings">لمات</TabsTrigger>
+  </TabsList>
+  <TabsContent value="people">...</TabsContent>
+  <TabsContent value="gatherings">...</TabsContent>
+</Tabs>
+
+// استخدم:
+const [tab, setTab] = useState<'people' | 'gatherings'>('people');
+
+<div>
+  <div className="inline-flex h-10 items-center justify-center rounded-lg bg-sand p-1">
+    <button
+      onClick={() => setTab('people')}
+      className={cn(
+        'inline-flex items-center justify-center px-3 py-1.5 text-sm rounded-md transition-all',
+        tab === 'people' ? 'bg-paper text-ink shadow-sm' : 'text-stone'
+      )}
+    >
+      أشخاص
+    </button>
+    <button
+      onClick={() => setTab('gatherings')}
+      className={cn(
+        'inline-flex items-center justify-center px-3 py-1.5 text-sm rounded-md transition-all',
+        tab === 'gatherings' ? 'bg-paper text-ink shadow-sm' : 'text-stone'
+      )}
+    >
+      لمات
+    </button>
+  </div>
+  
+  {tab === 'people' && <PeopleContent />}
+  {tab === 'gatherings' && <GatheringsContent />}
+</div>
+```
+
+طبّق هذا في:
+- `src/components/lamma/matching/MatchesPage.tsx`
+- `src/components/lamma/topics/TopicTabs.tsx`
+- أي مكان آخر يستخدم shadcn Tabs
+
+---
+
+## 📄 الصفحات الجديدة
+
+### 1. `/[locale]/dashboard/concierge`
+
+```tsx
+// src/app/[locale]/dashboard/concierge/page.tsx
+import { ConciergeChat } from '@/components/lamma/ai/ConciergeChat';
+import { RequireAuth } from '@/components/lamma/auth/RequireAuth';
+
+export default function ConciergePage() {
+  return (
+    <RequireAuth>
+      <div className="container py-8">
+        <div className="max-w-3xl mx-auto">
+          <ConciergeChat />
+        </div>
+      </div>
+    </RequireAuth>
+  );
+}
+```
+
+أضف رابط "المساعد الذكي" في:
+- `AccountDropdown` (للمسجّلين)
+- `DashboardHome` sidebar
+- Header nav (option: icon بجانب avatar)
+
+---
+
+## 📊 إضافة مفاتيح الترجمة
+
+أضف لـ `messages/{ar,en}.json`:
+
+```json
+{
+  "ai": {
+    "poweredBy": "مدعوم بالذكاء الاصطناعي" / "AI-powered",
+    "generating": "جارٍ التوليد..." / "Generating...",
+    "done": "تم" / "Done",
+    "aiSummary": "ملخص بالـ AI" / "AI summary",
+    "aiInsight": "رؤية ذكية" / "AI insight",
+    "summarizing": "جارٍ تلخيص المقال..." / "Summarizing article...",
+    "analyzingApplicant": "جارٍ تحليل المتقدم..." / "Analyzing applicant...",
+    "enhanceDescription": "تحسين بالـ AI" / "Enhance with AI",
+    "suggestQuestions": "اقترح أسئلة" / "Suggest questions",
+    "nlSearchPlaceholder": "صف اللمة التي تبحث عنها..." / "Describe the gathering you're looking for...",
+    "nlSearchHint": "اكتب بلغة طبيعية، مثل: لمة هادئة للنساء عن الكتب" / "Write naturally, e.g.: quiet book gathering for women",
+    "disclaimer": "الردود قد تحتوي على أخطاء. راجع التفاصيل قبل القرار." / "Responses may contain errors. Verify details before deciding."
+  },
+  "concierge": {
+    "title": "لامّة — مساعدتك الذكية" / "Lamma — Your AI assistant",
+    "subtitle": "اسألني عن أي لمة أو موضوع يهمك" / "Ask me about any gathering or topic",
+    "welcomeTitle": "كيف يمكنني مساعدتك؟" / "How can I help you?",
+    "welcomeSubtitle": "اسألني عن اللمات القادمة، اهتماماتك، أو فلسفة لَمَّة" / "Ask me about upcoming gatherings, your interests, or Lamma's philosophy",
+    "inputPlaceholder": "اكتب سؤالك هنا..." / "Type your question...",
+    "errorFallback": "عذراً، تعذّر الرد حالياً. حاول مرة أخرى." / "Sorry, couldn't respond right now. Try again.",
+    "navTitle": "المساعد الذكي" / "AI Concierge"
+  },
+  "nav": {
+    "concierge": "المساعد الذكي" / "AI Concierge"
+  }
+}
+```
+
+---
+
+## 📋 قائمة التحقق النهائية (Must Pass)
+
+- [ ] `bun run lint` — 0 errors, 0 warnings
+- [ ] dev server يعمل، `dev.log` نظيف
+- [ ] `/api/v1/ai/health` يرجع `status: ok, llm: connected`
+- [ ] `/api/v1/ai/concierge` POST يرجع رد ذكي (test: `{"question":"أي لمة تناسبني؟","userId":"user-noura","locale":"ar"}`)
+- [ ] `/api/v1/ai/summarize-letter` POST يرجع ملخص 50-80 كلمة
+- [ ] `/api/v1/ai/enhance-description` POST يرجع وصف محسّن
+- [ ] `/api/v1/ai/suggest-questions` POST يرجع 3-4 أسئلة JSON
+- [ ] `/api/v1/ai/review-insight` POST يرجع جملتين تحليليتين
+- [ ] `/api/v1/ai/search` POST يرجع filters صحيحة (test: "لمة هادئة للنساء" → topics=[], formats=["WOMEN_ONLY"])
+- [ ] `/dashboard/concierge` يعرض ConciergeChat مع 4 suggested questions
+- [ ] ConciergeChat يحفظ الـ messages ويعرض loading dots
+- [ ] LetterSummary يظهر على `/letters/[slug]` (lazy loaded)
+- [ ] NewGatheringForm يحتوي زر "تحسين بالـ AI" في step 4
+- [ ] NewGatheringForm يحتوي زر "اقترح أسئلة" في step 4
+- [ ] ApplicationReviewCard يعرض AIReviewInsight
+- [ ] NLSearchBar يظهر في `/gatherings` ويطبق الفلاتر
+- [ ] **Tabs fix**: `/dashboard/matches` التبديل يعمل بـ native buttons (لا Radix Tabs)
+- [ ] **Tabs fix**: `/topics/[slug]` التبديل يعمل بـ native buttons
+- [ ] LLM caching يعمل (نفس السؤال مرتين → أسرع في المرة الثانية)
+- [ ] Fallback يعمل عند فشل LLM (لا crash)
+- [ ] RTL/LTR يعمل في ConciergeChat (messages direction)
+- [ ] Mobile responsive
+- [ ] ابدأ Agent Browser:
+  - اختبر ConciergeChat: اسأل "أي لمة تناسبني؟" كنورة
+  - افتح أي letter → تحقق من ظهور AI summary
+  - افتح NewGatheringForm step 4 → اضغط "تحسين بالـ AI"
+  - افتح host applications → تحقق من AIReviewInsight
+  - افتح /gatherings → اكتب "لمة تصوير للرجال" → تحقق من تطبيق الفلاتر
+  - افتح /dashboard/matches → اضغط tabs → يجب أن تعمل الآن!
+
+---
+
+## 📝 التقرير النهائي المطلوب
+
+1. قائمة الملفات الجديدة/المعدّلة (tree view)
+2. لقطة `bun run lint`
+3. لقطة `curl http://localhost:3000/api/v1/ai/health`
+4. لقطة `curl -X POST http://localhost:3000/api/v1/ai/concierge -H "Content-Type: application/json" -d '{"question":"أي لمة تناسبني؟","userId":"user-noura","locale":"ar"}'`
+5. لقطة `curl -X POST http://localhost:3000/api/v1/ai/search -H "Content-Type: application/json" -d '{"query":"لمة هادئة للنساء عن الكتب","locale":"ar"}'`
+6. سيناريو اختبار كامل (step by step) مع لقطات شاشة:
+   - ConciergeChat conversation (3-4 messages)
+   - LetterSummary على صفحة رسالة
+   - AIEnhanceButton في NewGatheringForm (before/after)
+   - AIReviewInsight في ApplicationReviewCard
+   - NLSearchBar تطبيق الفلاتر
+   - /dashboard/matches tabs (تعمل الآن!)
+7. أي قرارات معمارية / انحرافات عن المواصفات
+8. ما الذي يحتاجه Phase 4 (Real-time Live Companion + WebSocket) ليعمل فوق هذا
+
+---
+
+## ⚠️ قواعد صارمة
+
+1. **لا تتجاوز نطاق هذه المرحلة** — لا WebSocket (Phase 4), لا VLM, لا voice
+2. **z-ai-web-dev-sdk للـ backend فقط** — أبداً في client components
+3. **كل LLM calls عبر API routes** — لا direct imports في client
+4. **Fallback دائماً** — لو فشل LLM، لا crash، استخدم fallback text
+5. **Caching** — كل خدمة لها cacheKey (ما عدا concierge للمسجّلين)
+6. **كل النصوص في `messages/*.json`** — لا hardcoded strings
+7. **Native buttons بدل Radix Tabs** — إصلاح مشكلة WASM
+8. **استخدم logical properties** (`ms-`, `me-`, `ps-`, `pe-`)
+9. **TypeScript strict** — لا `any`
+10. **Zod validation** لكل API endpoint
+11. **احترم الـ file structure**: `src/lib/ai/`, `src/components/lamma/ai/`
+12. **اكتب worklog في `/home/z/my-project/worklog.md`** (append)
+13. **اقرأ `dev.log` بعد كل تغيير كبير**
+14. **ابدأ Agent Browser قبل الإبلاغ بالانتهاء**
+15. **LLM responses بـ locale المستخدم** (ar/en)
+16. **AI disclaimers** في كل مكان (transparency)
+
+ابدأ الآن.
+```
+
+---

@@ -13,7 +13,8 @@
     "account": "Account",
     "openMenu": "Open menu",
     "closeMenu": "Close menu",
-    "switchLocale": "Switch language"
+    "switchLocale": "Switch language",
+    "concierge": "AI Concierge"
   },
   "footer": {
     "titles": {
@@ -147,8 +148,138 @@
     "soon": "Soon",
     "placeholder": "This section is built in a later phase"
   },
+  "ai": {
+    "poweredBy": "AI-powered",
+    "generating": "Generating...",
+    "done": "Done",
+    "aiSummary": "AI summary",
+    "aiInsight": "AI insight",
+    "summarizing": "Summarizing article...",
+    "analyzingApplicant": "Analyzing applicant...",
+    "enhanceDescription": "Enhance with AI",
+    "suggestQuestions": "Suggest questions",
+    "nlSearchPlaceholder": "Describe the gathering you're looking for...",
+    "nlSearchHint": "Write naturally, e.g.: quiet book gathering for women",
+    "disclaimer": "Responses may contain errors. Verify details before deciding."
+  },
+  "concierge": {
+    "title": "Lamma — Your AI assistant",
+    "subtitle": "Ask me about any gathering or topic",
+    "welcomeTitle": "How can I help you?",
+    "welcomeSubtitle": "Ask me about upcoming gatherings, your interests, or Lamma's philosophy",
+    "inputPlaceholder": "Type your question...",
+    "errorFallback": "Sorry, couldn't respond right now. Try again.",
+    "navTitle": "AI Concierge"
+  },
   "language": {
     "ar": "العربية",
     "en": "English"
+  },
+  "auth": {
+    "login": "Log in",
+    "register": "Sign up",
+    "logout": "Log out",
+    "dashboard": "My dashboard",
+    "myApplications": "My applications",
+    "switchDemoUser": "Switch demo user",
+    "loginTitle": "Welcome back",
+    "loginSubtitle": "Sign in to continue",
+    "email": "Email",
+    "password": "Password",
+    "demoPasswordHint": "Demo password for all users: demo",
+    "orQuickDemo": "Or try as a demo user",
+    "demoUsersTitle": "Demo users",
+    "demoUsers": {
+      "user-noura": "Noura",
+      "user-ahmad": "Ahmad",
+      "user-sara": "Sara",
+      "user-khaled": "Khaled (Host)"
+    },
+    "tiers": {
+      "NEWCOMER": "Newcomer",
+      "REGULAR": "Regular",
+      "CURATOR": "Curator",
+      "HOST": "Host"
+    },
+    "errors": {
+      "user-not-found": "Email not registered",
+      "wrong-password": "Wrong password"
+    },
+    "registerTitle": "Create your account",
+    "registerSubtitle": "Join the Lamma community",
+    "name": "Full name",
+    "interests": "Your interests",
+    "interestsHint": "Pick 3-5 interests",
+    "selectInterests": "Select interests"
+  },
+  "matching": {
+    "forYou": "For you",
+    "recommendedTitle": "Gatherings we recommend for you, {name}",
+    "recommendedSubtitle": "Based on your interests and past attendance, we picked these for you.",
+    "yourMatchScore": "Your match score",
+    "matchScoreHint": "Calculated from your interests and profile.",
+    "matchScorePreview": "Preliminary match score",
+    "peopleYouMightKnow": "People you might know",
+    "similarity": "match",
+    "meetAtGathering": "People you might meet",
+    "meetAtGatheringHint": "These people share your interests and might attend this gathering",
+    "interests": {
+      "photography": "Photography",
+      "art": "Art",
+      "books": "Books",
+      "music": "Music",
+      "food": "Food",
+      "culture": "Culture",
+      "history": "History",
+      "design": "Design",
+      "technology": "Technology",
+      "networking": "Networking",
+      "poetry": "Poetry",
+      "literature": "Literature",
+      "painting": "Painting",
+      "pottery": "Pottery",
+      "marketing": "Marketing"
+    },
+    "reasons": {
+      "matching-interest": "Matches your interest: {interest}",
+      "intimate-size": "Perfect intimate size",
+      "similar-attendees": "{count} similar people might attend",
+      "topic": "A topic you'd love"
+    },
+    "tabs": {
+      "people": "People",
+      "gatherings": "Gatherings"
+    },
+    "page": {
+      "title": "My matches",
+      "subtitle": "People who share your interests, and gatherings you would love",
+      "whyRecommend": "Why we recommend this",
+      "sharedInterests": "Shared interests",
+      "previousAttendance": "Previously attended {count} gatherings"
+    }
+  },
+  "dashboard": {
+    "welcome": "Welcome, {name}",
+    "myApplications": "My applications",
+    "upcomingGatherings": "Upcoming gatherings",
+    "myMatches": "My matches",
+    "viewAllApplications": "View all applications",
+    "noApplications": "No applications yet",
+    "browseGatherings": "Browse gatherings",
+    "noUpcoming": "No upcoming gatherings",
+    "stats": {
+      "attended": "Gatherings attended",
+      "pending": "Pending applications",
+      "matches": "Matches"
+    },
+    "profile": "Profile",
+    "editProfile": "Edit profile",
+    "membership": "Membership",
+    "tier": "Tier",
+    "points": "Points",
+    "nextTier": "Next tier",
+    "badges": "Badges",
+    "interests": "Interests",
+    "breadcrumbs": "My dashboard"
   }
 }

@@ -13,7 +13,8 @@
     "account": "حسابي",
     "openMenu": "افتح القائمة",
     "closeMenu": "أغلق القائمة",
-    "switchLocale": "تبديل اللغة"
+    "switchLocale": "تبديل اللغة",
+    "concierge": "المساعد الذكي"
   },
   "footer": {
     "titles": {
@@ -147,8 +148,138 @@
     "soon": "قريباً",
     "placeholder": "هذا القسم يُبنى في مرحلة قادمة"
   },
+  "ai": {
+    "poweredBy": "مدعوم بالذكاء الاصطناعي",
+    "generating": "جارٍ التوليد...",
+    "done": "تم",
+    "aiSummary": "ملخص بالـ AI",
+    "aiInsight": "رؤية ذكية",
+    "summarizing": "جارٍ تلخيص المقال...",
+    "analyzingApplicant": "جارٍ تحليل المتقدم...",
+    "enhanceDescription": "تحسين بالـ AI",
+    "suggestQuestions": "اقترح أسئلة",
+    "nlSearchPlaceholder": "صف اللمة التي تبحث عنها...",
+    "nlSearchHint": "اكتب بلغة طبيعية، مثل: لمة هادئة للنساء عن الكتب",
+    "disclaimer": "الردود قد تحتوي على أخطاء. راجع التفاصيل قبل القرار."
+  },
+  "concierge": {
+    "title": "لامّة — مساعدتك الذكية",
+    "subtitle": "اسألني عن أي لمة أو موضوع يهمك",
+    "welcomeTitle": "كيف يمكنني مساعدتك؟",
+    "welcomeSubtitle": "اسألني عن اللمات القادمة، اهتماماتك، أو فلسفة لَمَّة",
+    "inputPlaceholder": "اكتب سؤالك هنا...",
+    "errorFallback": "عذراً، تعذّر الرد حالياً. حاول مرة أخرى.",
+    "navTitle": "المساعد الذكي"
+  },
   "language": {
     "ar": "العربية",
     "en": "English"
+  },
+  "auth": {
+    "login": "تسجيل الدخول",
+    "register": "إنشاء حساب",
+    "logout": "تسجيل الخروج",
+    "dashboard": "لوحتي",
+    "myApplications": "طلباتي",
+    "switchDemoUser": "تبديل المستخدم التجريبي",
+    "loginTitle": "أهلاً بعودتك",
+    "loginSubtitle": "سجّل دخولك للمتابعة",
+    "email": "البريد الإلكتروني",
+    "password": "كلمة المرور",
+    "demoPasswordHint": "كلمة المرور لأي مستخدم تجريبي: demo",
+    "orQuickDemo": "أو جرّب كمستخدم تجريبي",
+    "demoUsersTitle": "مستخدمون تجريبيون",
+    "demoUsers": {
+      "user-noura": "نورة",
+      "user-ahmad": "أحمد",
+      "user-sara": "سارة",
+      "user-khaled": "خالد (صاحب)"
+    },
+    "tiers": {
+      "NEWCOMER": "عضو جديد",
+      "REGULAR": "عضو منتظم",
+      "CURATOR": "منسّق",
+      "HOST": "صاحب تجمع"
+    },
+    "errors": {
+      "user-not-found": "البريد الإلكتروني غير مسجّل",
+      "wrong-password": "كلمة المرور غير صحيحة"
+    },
+    "registerTitle": "أنشئ حسابك",
+    "registerSubtitle": "انضم إلى مجتمع لَمَّة",
+    "name": "الاسم الكامل",
+    "interests": "اهتماماتك",
+    "interestsHint": "اختر ٣-٥ اهتمامات",
+    "selectInterests": "اختر الاهتمامات"
+  },
+  "matching": {
+    "forYou": "مخصّصة لك",
+    "recommendedTitle": "لمات نوصي بها لك، {name}",
+    "recommendedSubtitle": "بناءً على اهتماماتك وحضورك السابق، اخترنا لك هذه اللمات.",
+    "yourMatchScore": "نتيجة مطابقتك",
+    "matchScoreHint": "تُحسب بناءً على اهتماماتك وملفك الشخصي.",
+    "matchScorePreview": "نتيجة المطابقة المبدئية",
+    "peopleYouMightKnow": "أشخاص قد تعرفهم",
+    "similarity": "توافق",
+    "meetAtGathering": "أشخاص قد تلتقي بهم",
+    "meetAtGatheringHint": "هؤلاء الأشخاص يشاركونك اهتماماتك وقد يحضرون هذه اللمة",
+    "interests": {
+      "photography": "photography",
+      "art": "art",
+      "books": "books",
+      "music": "music",
+      "food": "food",
+      "culture": "culture",
+      "history": "history",
+      "design": "design",
+      "technology": "technology",
+      "networking": "networking",
+      "poetry": "poetry",
+      "literature": "literature",
+      "painting": "painting",
+      "pottery": "pottery",
+      "marketing": "marketing"
+    },
+    "reasons": {
+      "matching-interest": "يطابق اهتمامك: {interest}",
+      "intimate-size": "حجم حميمي مثالي",
+      "similar-attendees": "{count} من أشخاص مشابهين قد يحضرون",
+      "topic": "موضوع يهمك"
+    },
+    "tabs": {
+      "people": "أشخاص",
+      "gatherings": "لمات"
+    },
+    "page": {
+      "title": "مطابقاتي",
+      "subtitle": "أشخاص يشاركونك الاهتمامات، ولمات قد تهمك",
+      "whyRecommend": "لماذا نوصي بهذه اللمة؟",
+      "sharedInterests": "اهتمامات مشتركة",
+      "previousAttendance": "تقاسم حضر {count} لمات سابقة"
+    }
+  },
+  "dashboard": {
+    "welcome": "أهلاً، {name}",
+    "myApplications": "طلباتي",
+    "upcomingGatherings": "لمات قادمة",
+    "myMatches": "مطابقاتي",
+    "viewAllApplications": "عرض كل الطلبات",
+    "noApplications": "لا توجد طلبات بعد",
+    "browseGatherings": "تصفّح اللمات",
+    "noUpcoming": "لا توجد لمات قادمة",
+    "stats": {
+      "attended": "لمات حضرت",
+      "pending": "طلبات قيد المراجعة",
+      "matches": "مطابقات"
+    },
+    "profile": "الملف الشخصي",
+    "editProfile": "تعديل الملف",
+    "membership": "العضوية",
+    "tier": "المستوى",
+    "points": "نقاط",
+    "nextTier": "المستوى التالي",
+    "badges": "الأوسمة",
+    "interests": "الاهتمامات",
+    "breadcrumbs": "لوحتي"
   }
 }

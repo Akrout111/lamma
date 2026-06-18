@@ -1,0 +1,1258 @@
+
+---
+
+# 📨 البرومبت #2B — Host Dashboard (مراجعة الطلبات + إنشاء لمة + Analytics)
+
+انسخ البرومبت التالي وأرسله إلى GLM 5.2 Full Stack Agent:
+
+```markdown
+# مهمة: المرحلة 2B — لوحة صاحب التجمع (Host Dashboard)
+
+## 📖 السياق والمراجع الإلزامية
+
+المراحل 0, 1A, 1B, 2A مكتملة بنجاح. اقرأ أولاً:
+1. `/home/z/my-project/worklog.md` — سجل العمل الكامل (خاصة قرارات Phase 2A)
+2. `/home/z/my-project/reference/Lamma-Project-Full-Documentation.md` — قسم 7.4 (إدارة التجمعات) + قسم 8.7 (AI matching) + قسم 8.10 (Host Concierge Dashboard)
+3. الكود الموجود في:
+   - `src/lib/auth-store.ts` — Zustand mock auth
+   - `src/lib/applications-store.ts` — `updateStatus()` جاهز للاستخدام
+   - `src/data/demo-users.ts` — 3 personas (نورة، أحمد، سارة) — **لا أحدهم host**
+   - `src/data/hosts.ts` — 5 hosts مع `handle` و `userId?` (لم يُربط بعد)
+   - `src/data/gatherings.ts` — 8 لمات مع `hostHandle`
+   - `src/app/[locale]/dashboard/layout.tsx` — RequireAuth + layout موجود
+   - `src/components/lamma/auth/AccountDropdown.tsx` — Dropdown يحتاج إضافة "لوحة الإدارة" للـ hosts
+4. **مهم:** shadcn Checkbox لا يعمل في WASM build — استخدم native `<input type="checkbox">` دائماً
+
+**هذه المرحلة 2B من 8 مراحل. لا تتجاوز نطاقها.**
+
+---
+
+## 🎯 هدف هذه المرحلة بالضبط
+
+بناء لوحة احترافية لأصحاب التجمعات تشمل:
+
+1. ✅ **Demo user رابع (خالد)** — صاحب تجمع فني
+2. ✅ **ربط demo user بخالد host** في `src/data/hosts.ts`
+3. ✅ **حساب `isHost` و `hostedGatherings`** ديناميكياً للمستخدم المسجّل
+4. ✅ **Host dashboard** `/[locale]/dashboard/host` بـ 4 tabs:
+   - **تجمعاتي** (My gatherings)
+   - **الطلبات** (Applications review)
+   - **الإحصاءات** (Analytics)
+   - **الرسائل** (Messages placeholder)
+5. ✅ **مراجعة الطلبات** مع AI match score visualization + approve/reject/waitlist
+6. ✅ **نموذج إنشاء لمة** `/[locale]/dashboard/host/new` (multi-step)
+7. ✅ **إشعارات host** (toast + dashboard badge) عند تغيير حالة طلب
+8. ✅ **تحديث AccountDropdown** لإظهار "لوحة الإدارة" للـ hosts
+9. ✅ **Analytics مع recharts** (موجود في dependencies)
+10. ✅ **Seed applications وهمية** لكل لمات الـ host (3-5 طلبات لكل لمة)
+
+**لا تبني في هذه المرحلة:**
+- ❌ Real messaging system (Phase 4 — Live Companion)
+- ❌ Real AI matching (Phase 3 — سنستخدم mock scores فقط)
+- ❌ Host application/onboarding flow (يحمل khaled "verified" مسبقاً)
+- ❌ Edit/delete gathering (فقط view + create جديد)
+- ❌ Backend persistence — نستمر في localStorage
+
+---
+
+## 👤 Demo User رابع: خالد
+
+أضف لـ `src/data/demo-users.ts`:
+
+```typescript
+{
+  id: 'user-khaled',
+  email: 'khaled@lamma.demo',
+  name: '{"ar":"خالد المطيري","en":"Khaled Al-Mutairi"}',
+  nameLocalized: { ar: 'خالد المطيري', en: 'Khaled Al-Mutairi' },
+  avatarUrl: '/images/hosts/mohammed_poet.jpg', // reuse — PROD-ONLY: real photo
+  bio: '{"ar":"فنان تشكيلي كويتي، أنظّم ورشاً فنية حميمية في استوديو الخاص.","en":"Kuwaiti visual artist organizing intimate art workshops in my private studio."}',
+  bioLocalized: {
+    ar: 'فنان تشكيلي كويتي، أنظّم ورشاً فنية حميمية في استوديو الخاص.',
+    en: 'Kuwaiti visual artist organizing intimate art workshops in my private studio.',
+  },
+  gender: 'male',
+  nationality: 'كويتي',
+  interests: ['art', 'painting', 'pottery', 'culture', 'photography'],
+  membershipTier: 'HOST',
+  hostedCount: 3,
+  attendedCount: 0,
+  password: 'demo',
+}
+```
+
+في `src/data/hosts.ts`، حدّث host `@mohammed_poet` ليصبح `@khaled_artist` واربطه بـ `user-khaled`:
+
+```typescript
+{
+  handle: '@khaled_artist',
+  userId: 'user-khaled',  // ← أضف هذا الحقل
+  // ... بقية الحقول تحوّل من mohammed_poet إلى khaled_artist
+  displayName: { ar: 'خالد المطيري', en: 'Khaled Al-Mutairi' },
+  bio: { ar: 'فنان تشكيلي كويتي، ...', en: 'Kuwaiti visual artist, ...' },
+  specialties: ['art', 'painting', 'pottery'],
+  isVerified: true,
+  // ...
+}
+```
+
+**مهم:** كل الـ gatherings التي تشير لـ `@mohammed_poet` يجب تحديثها لتشير لـ `@khaled_artist`.
+
+أضف لـ `messages/{ar,en}.json` تحت `auth.demoUsers`:
+```json
+{
+  "user-khaled": "خالد (صاحب)" / "Khaled (Host)"
+}
+```
+
+### Helper: حساب `isHost` و `hostedGatherings`
+
+أنشئ `src/lib/host-helpers.ts`:
+
+```typescript
+import { hosts } from '@/data/hosts';
+import { gatherings } from '@/data/gatherings';
+import type { DemoUser } from '@/data/demo-users';
+
+export function getUserHost(userId: string) {
+  return hosts.find(h => h.userId === userId);
+}
+
+export function isUserHost(userId: string): boolean {
+  return !!getUserHost(userId);
+}
+
+export function getHostGatherings(hostHandle: string) {
+  return gatherings.filter(g => g.hostHandle === hostHandle);
+}
+
+export function getHostUpcomingGatherings(hostHandle: string) {
+  const now = new Date();
+  return getHostGatherings(hostHandle).filter(g => new Date(g.startDate) > now);
+}
+
+export function getHostPastGatherings(hostHandle: string) {
+  const now = new Date();
+  return getHostGatherings(hostHandle).filter(g => new Date(g.startDate) <= now);
+}
+```
+
+---
+
+## 🌱 Seed Applications وهمية
+
+أنشئ `src/data/seed-applications.ts` يحتوي على طلبات وهمية مُولّدة لكل لمات خالد:
+
+```typescript
+import { gatherings } from './gatherings';
+import { demoUsers } from './demo-users';
+
+// PROD-ONLY: استبدل بـ Prisma seed
+export interface SeedApplication {
+  id: string;
+  gatheringSlug: string;
+  gatheringTitle: string;
+  userId: string;
+  userEmail: string;
+  userName: string;
+  motivation: string;
+  background?: string;
+  customAnswers: Record<string, string>;
+  dietaryRestrictions?: string;
+  accessibilityNeeds?: string;
+  matchScore: number;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'WAITLISTED';
+  reviewedAt?: string;
+  reviewedBy?: string;
+  statusHistory: Array<{ status: string; timestamp: string; note?: string }>;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// احصل على لمات خالد
+const khaledGatherings = gatherings.filter(g => g.hostHandle === '@khaled_artist');
+
+const attendees = demoUsers.filter(u => u.id !== 'user-khaled');
+
+const motivations = {
+  ar: [
+    'أبحث عن تجربة فنية أصيلة بعيداً عن الورش التجارية. سمعت عن أعمال خالد وأحترم أسلوبه في تعليم الرسم.',
+    'كهاوي رسم منذ سنوات، أريد تطوير مهاراتي في بيئة حميمية. حجم اللمة الصغير يهمني.',
+    'أرسم بالأكريليك وأريد تجربة الزيت. جلست خالد السابقة في معرض الكويت ألهمتني.',
+    'مبتدئة تماماً في الفن، أبحث عن ورشة لا أشعر فيها بالضغط. خالد معروف بصبره مع المبتدئين.',
+    'مصمّمة جرافيك أريد كسر القالب الرقمي والعودة للّون اليدوي. تجربة الورشة تهمّني ثقافياً وفنياً.',
+  ],
+  en: [
+    'I seek an authentic artistic experience away from commercial workshops. I know Khaled\'s work and respect his teaching style.',
+    'As a hobbyist painter for years, I want to develop my skills in an intimate setting. The small size matters to me.',
+    'I paint with acrylic and want to try oils. Khaled\'s previous session at Kuwait Art Fair inspired me.',
+    'Complete beginner in art, looking for a workshop where I won\'t feel pressured. Khaled is known for patience with beginners.',
+    'Graphic designer wanting to break the digital mold and return to manual color. The workshop appeals culturally and artistically.',
+  ],
+};
+
+// ولّد 4-6 طلبات لكل لمة من لمات خالد
+export const seedApplications: SeedApplication[] = khaledGatherings.flatMap(gathering => {
+  const count = 4 + Math.floor(Math.random() * 3); // 4-6 طلبات
+  return Array.from({ length: count }, (_, i) => {
+    const attendee = attendees[(i + Math.floor(Math.random() * 3)) % attendees.length];
+    const motivationIdx = Math.floor(Math.random() * 5);
+    const statuses = ['PENDING', 'APPROVED', 'REJECTED', 'WAITLISTED'] as const;
+    const status = i === 0 ? 'PENDING' : statuses[Math.floor(Math.random() * 4)];
+    const createdAt = new Date(Date.now() - (i + 1) * 86400000 * (1 + Math.random() * 5)).toISOString();
+    
+    return {
+      id: `seed-app-${gathering.slug}-${i + 1}`,
+      gatheringSlug: gathering.slug,
+      gatheringTitle: JSON.stringify(gathering.title),
+      userId: attendee.id,
+      userEmail: attendee.email,
+      userName: JSON.stringify(attendee.nameLocalized),
+      motivation: motivations.ar[motivationIdx],
+      background: motivations.en[motivationIdx],
+      customAnswers: {},
+      matchScore: 60 + Math.floor(Math.random() * 36), // 60-95
+      status,
+      reviewedAt: status !== 'PENDING' ? new Date(Date.now() - 86400000).toISOString() : undefined,
+      reviewedBy: status !== 'PENDING' ? 'user-khaled' : undefined,
+      statusHistory: [
+        { status: 'PENDING', timestamp: createdAt, note: 'تم استلام الطلب' },
+        ...(status !== 'PENDING' ? [{ status, timestamp: new Date(Date.now() - 86400000).toISOString() }] : []),
+      ],
+      createdAt,
+      updatedAt: status !== 'PENDING' ? new Date(Date.now() - 86400000).toISOString() : createdAt,
+    };
+  });
+});
+```
+
+### تحديث applications-store
+في `src/lib/applications-store.ts`:
+- أضف `seedApplications` كحالة أولية (initial state)
+- أضف `getByHost(userId)` — يرجع كل الطلبات للّمات التي يملكها الـ host
+
+```typescript
+// في initial state:
+applications: seedApplications,
+
+// methods جديدة:
+getByHost: (userId) => {
+  const host = getUserHost(userId);
+  if (!host) return [];
+  const hostSlugs = getHostGatherings(host.handle).map(g => g.slug);
+  return get().applications.filter(a => 
+    hostSlugs.includes(a.gatheringSlug) && a.status !== 'CANCELLED'
+  );
+},
+```
+
+أضف **flag `hasHydrated`** (إن لم يكن موجوداً) لتجنب وميض SSR.
+
+---
+
+## 🧱 لوحة الـ Host
+
+### Route structure
+
+```
+src/app/[locale]/dashboard/host/
+├── layout.tsx          # HostGuard + sidebar layout
+├── page.tsx            # Redirect to /gatherings tab
+├── gatherings/
+│   └── page.tsx        # "تجمعاتي" tab
+├── applications/
+│   └── page.tsx        # "الطلبات" tab (مع فلترة per gathering)
+├── analytics/
+│   └── page.tsx        # "الإحصاءات" tab (recharts)
+├── messages/
+│   └── page.tsx        # "الرسائل" tab (placeholder + coming soon)
+└── new/
+    └── page.tsx        # نموذج إنشاء لمة جديدة
+```
+
+### HostGuard component
+
+`src/components/lamma/auth/HostGuard.tsx`:
+
+```tsx
+'use client';
+
+import { useAuthStore } from '@/lib/auth-store';
+import { isUserHost } from '@/lib/host-helpers';
+import { useTranslations } from 'next-intl';
+import { Lock } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { useRouter } from '@/i18n/routing';
+
+export function HostGuard({ children }: { children: React.ReactNode }) {
+  const { user, isAuthenticated, hasHydrated } = useAuthStore();
+  const router = useRouter();
+  const t = useTranslations('host');
+  
+  if (!hasHydrated) {
+    return <div className="min-h-[60vh] flex items-center justify-center">
+      <div className="size-8 border-2 border-clay border-t-transparent rounded-full animate-spin" />
+    </div>;
+  }
+  
+  if (!isAuthenticated || !user || !isUserHost(user.id)) {
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center px-4">
+        <div className="text-center max-w-md">
+          <div className="inline-flex items-center justify-center size-16 rounded-full bg-sand mb-6">
+            <Lock className="size-8 text-clay" />
+          </div>
+          <h1 className="font-display text-2xl mb-3">{t('notHostTitle')}</h1>
+          <p className="text-stone mb-6">{t('notHostDescription')}</p>
+          <Button onClick={() => router.push('/dashboard')}>
+            {t('backToDashboard')}
+          </Button>
+          <p className="text-xs text-stone mt-4">
+            {t('demoHint')} {/* "للتجربة، سجّل الدخول كـ خالد (صاحب)" */}
+          </p>
+        </div>
+      </div>
+    );
+  }
+  
+  return <>{children}</>;
+}
+```
+
+### Host Sidebar Layout
+
+`src/app/[locale]/dashboard/host/layout.tsx`:
+
+```tsx
+import { HostGuard } from '@/components/lamma/auth/HostGuard';
+import { HostSidebar } from '@/components/lamma/host/HostSidebar';
+
+export default function HostLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <HostGuard>
+      <div className="container py-8">
+        <div className="grid lg:grid-cols-[260px_1fr] gap-8">
+          <HostSidebar />
+          <main>{children}</main>
+        </div>
+      </div>
+    </HostGuard>
+  );
+}
+```
+
+`src/components/lamma/host/HostSidebar.tsx`:
+
+```tsx
+'use client';
+
+import { useTranslations } from 'next-intl';
+import { Link, usePathname } from '@/i18n/routing';
+import { Calendar, Inbox, BarChart3, MessageSquare, Plus, Home } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { useApplicationsStore } from '@/lib/applications-store';
+import { useAuthStore } from '@/lib/auth-store';
+import { getUserHost } from '@/lib/host-helpers';
+
+const navItems = [
+  { href: '/dashboard/host/gatherings', icon: Calendar, key: 'gatherings' },
+  { href: '/dashboard/host/applications', icon: Inbox, key: 'applications', badge: true },
+  { href: '/dashboard/host/analytics', icon: BarChart3, key: 'analytics' },
+  { href: '/dashboard/host/messages', icon: MessageSquare, key: 'messages' },
+];
+
+export function HostSidebar() {
+  const t = useTranslations('host.nav');
+  const pathname = usePathname();
+  const { user } = useAuthStore();
+  const { getByHost } = useApplicationsStore();
+  
+  const host = user ? getUserHost(user.id) : null;
+  const pendingCount = user ? getByHost(user.id).filter(a => a.status === 'PENDING').length : 0;
+  
+  return (
+    <aside className="lg:sticky lg:top-24 h-fit">
+      <nav className="space-y-1">
+        <Link
+          href="/dashboard"
+          className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-stone hover:bg-sand transition-colors"
+        >
+          <Home className="size-4" />
+          {t('userDashboard')}
+        </Link>
+        
+        {navItems.map(item => {
+          const isActive = pathname.includes(item.href.split('/').pop()!);
+          const Icon = item.icon;
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={cn(
+                'flex items-center justify-between gap-3 px-3 py-2 rounded-lg text-sm transition-colors',
+                isActive
+                  ? 'bg-clay/10 text-clay font-medium'
+                  : 'text-ink/70 hover:bg-sand'
+              )}
+            >
+              <span className="flex items-center gap-3">
+                <Icon className="size-4" />
+                {t(item.key)}
+              </span>
+              {item.badge && pendingCount > 0 && (
+                <span className="bg-clay text-paper text-xs px-2 py-0.5 rounded-full tabular">
+                  {pendingCount}
+                </span>
+              )}
+            </Link>
+          );
+        })}
+        
+        <div className="pt-4 mt-4 border-t border-stone/20">
+          <Link
+            href="/dashboard/host/new"
+            className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm bg-clay text-paper hover:bg-clay/90 transition-colors"
+          >
+            <Plus className="size-4" />
+            {t('newGathering')}
+          </Link>
+        </div>
+      </nav>
+      
+      {host && (
+        <div className="mt-6 p-4 bg-sand rounded-lg">
+          <p className="text-xs text-stone mb-2">{t('hostingAs')}</p>
+          <p className="font-display text-sm">{host.handle}</p>
+          {host.isVerified && (
+            <p className="text-xs text-success mt-1">✓ {t('verified')}</p>
+          )}
+        </div>
+      )}
+    </aside>
+  );
+}
+```
+
+---
+
+## 📄 Tab 1: تجمعاتي (`/dashboard/host/gatherings`)
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│ Page header:                                                  │
+│   "تجمعاتي" (h1)                                              │
+│   Filter: [الكل] [قادمة] [سابقة] [مسودة]                     │
+├──────────────────────────────────────────────────────────────┤
+│ List of host's gatherings (compact cards):                    │
+│                                                               │
+│ ┌────────────────────────────────────────────────────────┐  │
+│ │ [Image 4:5]  Title (h3)                                │  │
+│ │              Date + venue                              │  │
+│ │              Status badge (APPLICATIONS_OPEN/COMPLETED)│  │
+│ │              Stats: 5 طلبات • 3 مقبولة • 12/25         │  │
+│ │              [عرض الطلبات]  [عرض الصفحة العامة]       │  │
+│ └────────────────────────────────────────────────────────┘  │
+│                                                               │
+│ ┌────────────────────────────────────────────────────────┐  │
+│ │ ... (next gathering)                                    │  │
+│ └────────────────────────────────────────────────────────┘  │
+├──────────────────────────────────────────────────────────────┤
+│ Empty state (لو host بدون لمات): "لا توجد لمات بعد" + CTA   │
+└──────────────────────────────────────────────────────────────┘
+```
+
+كل بطاقة تعرض:
+- صورة + عنوان + تاريخ + مكان
+- Status badge
+- إحصاءات سريعة: عدد الطلبات / المقبولة / نسبة الملء
+- زرّان: "عرض الطلبات" (يفتح `/dashboard/host/applications?gathering=slug`) + "عرض الصفحة العامة" (يفتح `/gatherings/[slug]`)
+
+---
+
+## 📄 Tab 2: الطلبات (`/dashboard/host/applications`) — الأهم
+
+### التخطيط
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│ Page header:                                                  │
+│   "الطلبات" (h1)                                              │
+│   Filter by gathering dropdown (default: الكل)                │
+│   Filter by status tabs: [الكل] [قيد المراجعة] [مقبولة] ...   │
+├──────────────────────────────────────────────────────────────┤
+│ Results grid (responsive):                                    │
+│                                                               │
+│ ┌────────────────────────────────────────────────────────┐  │
+│ │ [Avatar 1:1]  Applicant name (h3)                      │  │
+│ │               Email + interests chips                  │  │
+│ │                                                         │  │
+│ │               Gathering title (compact)                 │  │
+│ │               Submitted 3 days ago                      │  │
+│ │                                                         │  │
+│ │               Match score visualization:                │  │
+│ │               ┌──────────────────────────────┐          │  │
+│ │               │ ████████████░░░░ 78%          │          │  │
+│ │               │ "توافق عالٍ مع الحاضرين"     │          │  │
+│ │               └──────────────────────────────┘          │  │
+│ │                                                         │  │
+│ │               Status badge (current)                    │  │
+│ │                                                         │  │
+│ │               [عرض التفاصيل] [قبول] [رفض] [قائمة]      │  │
+│ └────────────────────────────────────────────────────────┘  │
+└──────────────────────────────────────────────────────────────┘
+```
+
+### Application Review Card
+
+`src/components/lamma/host/ApplicationReviewCard.tsx`:
+
+```tsx
+'use client';
+
+import { useTranslations } from 'next-intl';
+import { useRouter } from '@/i18n/routing';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Check, X, ListPlus, Eye, Clock } from 'lucide-react';
+import { StatusBadge } from '@/components/lamma/applications/StatusBadge';
+import { useApplicationsStore } from '@/lib/applications-store';
+import { useAuthStore } from '@/lib/auth-store';
+import { useToast } from '@/hooks/use-toast';
+import { localized } from '@/lib/use-localized';
+import { useState } from 'react';
+import { ApplicationDetailDialog } from './ApplicationDetailDialog';
+import type { Application } from '@/lib/applications-store';
+
+interface Props {
+  application: Application;
+}
+
+export function ApplicationReviewCard({ application }: Props) {
+  const t = useTranslations('host.applications');
+  const router = useRouter();
+  const { user } = useAuthStore();
+  const { updateStatus } = useApplicationsStore();
+  const { toast } = useToast();
+  const [detailOpen, setDetailOpen] = useState(false);
+  
+  const applicantName = JSON.parse(application.userName);
+  const gatheringTitle = JSON.parse(application.gatheringTitle);
+  
+  const matchScore = application.matchScore ?? 0;
+  const matchColor = matchScore >= 80 ? 'bg-success' : matchScore >= 65 ? 'bg-saffron' : 'bg-stone';
+  const matchLabel = matchScore >= 80 ? t('matchHigh') : matchScore >= 65 ? t('matchMedium') : t('matchLow');
+  
+  const handleAction = (action: 'APPROVED' | 'REJECTED' | 'WAITLISTED') => {
+    if (!user) return;
+    updateStatus(application.id, action, user.id);
+    toast({
+      title: t(`actions.${action.toLowerCase()}.title`),
+      description: t(`actions.${action.toLowerCase()}.description`, { name: localized({ ar: applicantName.ar, en: applicantName.en }) }),
+    });
+  };
+  
+  const isPending = application.status === 'PENDING';
+  
+  return (
+    <Card className="p-5 hover:shadow-md transition-shadow">
+      <div className="flex items-start gap-4 mb-4">
+        <Avatar className="size-12">
+          <AvatarImage src="/images/avatars/default.jpg" alt="" />
+          <AvatarFallback>{localized({ ar: applicantName.ar, en: applicantName.en }).charAt(0)}</AvatarFallback>
+        </Avatar>
+        
+        <div className="flex-1 min-w-0">
+          <h3 className="font-display text-lg">{localized({ ar: applicantName.ar, en: applicantName.en })}</h3>
+          <p className="text-xs text-stone">{application.userEmail}</p>
+          <p className="text-xs text-stone mt-1">
+            {t('forGathering')}: <span className="font-medium text-ink">{localized({ ar: gatheringTitle.ar, en: gatheringTitle.en })}</span>
+          </p>
+        </div>
+        
+        <StatusBadge status={application.status} size="sm" />
+      </div>
+      
+      {/* Match score visualization */}
+      <div className="mb-4 p-3 bg-sand rounded-lg">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-xs text-stone flex items-center gap-1">
+            <span className="text-clay">●</span> {t('aiMatchScore')}
+          </span>
+          <span className="text-sm font-display tabular">{matchScore}%</span>
+        </div>
+        <div className="h-2 bg-paper rounded-full overflow-hidden">
+          <div className={`h-full ${matchColor} transition-all duration-500`} style={{ width: `${matchScore}%` }} />
+        </div>
+        <p className="text-xs text-stone mt-1.5">{matchLabel}</p>
+      </div>
+      
+      {/* Motivation preview */}
+      <div className="mb-4">
+        <p className="text-xs text-stone mb-1">{t('motivation')}</p>
+        <p className="text-sm text-ink/80 line-clamp-2">{application.motivation}</p>
+      </div>
+      
+      {/* Submitted */}
+      <p className="text-xs text-stone mb-4 flex items-center gap-1">
+        <Clock className="size-3" />
+        {t('submittedAgo', { time: formatRelative(application.createdAt, locale) })}
+      </p>
+      
+      {/* Actions */}
+      <div className="flex flex-wrap gap-2">
+        <Button variant="outline" size="sm" onClick={() => setDetailOpen(true)}>
+          <Eye className="size-3.5 me-1.5" />
+          {t('viewDetails')}
+        </Button>
+        
+        {isPending && (
+          <>
+            <Button size="sm" className="bg-success hover:bg-success/90 text-paper" onClick={() => handleAction('APPROVED')}>
+              <Check className="size-3.5 me-1.5" />
+              {t('approve')}
+            </Button>
+            <Button size="sm" variant="outline" className="border-teal text-teal hover:bg-teal/10" onClick={() => handleAction('WAITLISTED')}>
+              <ListPlus className="size-3.5 me-1.5" />
+              {t('waitlist')}
+            </Button>
+            <Button size="sm" variant="outline" className="border-error text-error hover:bg-error/10" onClick={() => handleAction('REJECTED')}>
+              <X className="size-3.5 me-1.5" />
+              {t('reject')}
+            </Button>
+          </>
+        )}
+      </div>
+      
+      <ApplicationDetailDialog
+        open={detailOpen}
+        onOpenChange={setDetailOpen}
+        application={application}
+      />
+    </Card>
+  );
+}
+```
+
+### ApplicationDetailDialog
+
+```tsx
+'use client';
+
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { useTranslations } from 'next-intl';
+import { localized } from '@/lib/use-localized';
+import type { Application } from '@/lib/applications-store';
+
+interface Props {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  application: Application;
+}
+
+export function ApplicationDetailDialog({ open, onOpenChange, application }: Props) {
+  const t = useTranslations('host.applications');
+  
+  const applicantName = JSON.parse(application.userName);
+  const gatheringTitle = JSON.parse(application.gatheringTitle);
+  
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>{t('applicationDetail')}</DialogTitle>
+        </DialogHeader>
+        
+        <div className="space-y-5">
+          {/* Applicant info */}
+          <section>
+            <h3 className="text-sm font-medium text-stone mb-2">{t('applicant')}</h3>
+            <div className="flex items-center gap-3">
+              <Avatar className="size-12">
+                <AvatarFallback>{localized({ ar: applicantName.ar, en: applicantName.en }).charAt(0)}</AvatarFallback>
+              </Avatar>
+              <div>
+                <p className="font-medium">{localized({ ar: applicantName.ar, en: applicantName.en })}</p>
+                <p className="text-xs text-stone">{application.userEmail}</p>
+              </div>
+            </div>
+          </section>
+          
+          {/* For gathering */}
+          <section>
+            <h3 className="text-sm font-medium text-stone mb-2">{t('forGathering')}</h3>
+            <p className="text-sm">{localized({ ar: gatheringTitle.ar, en: gatheringTitle.en })}</p>
+          </section>
+          
+          {/* Match score */}
+          {application.matchScore && (
+            <section>
+              <h3 className="text-sm font-medium text-stone mb-2">{t('aiMatchScore')}</h3>
+              <div className="flex items-center gap-3">
+                <div className="flex-1 h-3 bg-sand rounded-full overflow-hidden">
+                  <div className="h-full bg-clay" style={{ width: `${application.matchScore}%` }} />
+                </div>
+                <span className="font-display tabular text-lg">{application.matchScore}%</span>
+              </div>
+            </section>
+          )}
+          
+          {/* Motivation */}
+          <section>
+            <h3 className="text-sm font-medium text-stone mb-2">{t('motivation')}</h3>
+            <p className="text-sm leading-relaxed bg-sand p-3 rounded-lg">{application.motivation}</p>
+          </section>
+          
+          {/* Background */}
+          {application.background && (
+            <section>
+              <h3 className="text-sm font-medium text-stone mb-2">{t('background')}</h3>
+              <p className="text-sm leading-relaxed bg-sand p-3 rounded-lg">{application.background}</p>
+            </section>
+          )}
+          
+          {/* Custom answers */}
+          {Object.keys(application.customAnswers).length > 0 && (
+            <section>
+              <h3 className="text-sm font-medium text-stone mb-2">{t('customAnswers')}</h3>
+              <dl className="space-y-2">
+                {Object.entries(application.customAnswers).map(([q, a]) => (
+                  <div key={q}>
+                    <dt className="text-xs text-stone">{q}</dt>
+                    <dd className="text-sm">{a}</dd>
+                  </div>
+                ))}
+              </dl>
+            </section>
+          )}
+          
+          {/* Logistics */}
+          {(application.dietaryRestrictions || application.accessibilityNeeds) && (
+            <section>
+              <h3 className="text-sm font-medium text-stone mb-2">{t('logistics')}</h3>
+              {application.dietaryRestrictions && (
+                <p className="text-sm"><span className="text-stone">{t('dietary')}:</span> {application.dietaryRestrictions}</p>
+              )}
+              {application.accessibilityNeeds && (
+                <p className="text-sm"><span className="text-stone">{t('accessibility')}:</span> {application.accessibilityNeeds}</p>
+              )}
+            </section>
+          )}
+          
+          {/* Status timeline */}
+          <section>
+            <h3 className="text-sm font-medium text-stone mb-2">{t('timeline')}</h3>
+            <ol className="space-y-3">
+              {application.statusHistory.map((event, i) => (
+                <li key={i} className="flex gap-3">
+                  <div className="flex flex-col items-center">
+                    <div className="size-2 rounded-full bg-clay" />
+                    {i < application.statusHistory.length - 1 && <div className="w-px h-6 bg-stone/30" />}
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium">{t(`statuses.${event.status}`)}</p>
+                    <p className="text-xs text-stone">{formatRelative(event.timestamp, locale)}</p>
+                    {event.note && <p className="text-xs text-stone italic">{event.note}</p>}
+                  </div>
+                </li>
+              ))}
+            </ol>
+          </section>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+```
+
+### Filter UI
+- Dropdown لاختيار اللمة (default: الكل)
+- Tabs للفلترة بالحالة: [الكل] [قيد المراجعة] [مقبولة] [مرفوضة] [قائمة انتظار]
+- URL params: `?gathering=slug&status=PENDING`
+
+---
+
+## 📄 Tab 3: الإحصاءات (`/dashboard/host/analytics`)
+
+استخدم `recharts` (موجود في dependencies):
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│ Page header: "الإحصاءات" (h1)                                │
+├──────────────────────────────────────────────────────────────┤
+│ Top stats cards (4):                                         │
+│ ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐         │
+│ │  3       │ │  18      │ │  12      │ │ 4.7      │         │
+│ │  لمات    │ │  طلبات   │ │  مقبولة  │ │  تقييم   │         │
+│ └──────────┘ └──────────┘ └──────────┘ └──────────┘         │
+├──────────────────────────────────────────────────────────────┤
+│ Chart 1: Applications over time (BarChart)                   │
+│ - X axis: last 6 months                                      │
+│ - Y axis: number of applications                             │
+│ - Stacked by status (approved/pending/rejected)              │
+├──────────────────────────────────────────────────────────────┤
+│ Chart 2: Acceptance rate by gathering (PieChart or BarChart) │
+│ - % approved vs rejected vs waitlisted per gathering         │
+├──────────────────────────────────────────────────────────────┤
+│ Chart 3: Top performing gatherings (horizontal BarChart)     │
+│ - Sort by attendance rate                                    │
+├──────────────────────────────────────────────────────────────┤
+│ Chart 4: Match score distribution (AreaChart)                │
+│ - X axis: 0-100 match score buckets                          │
+│ - Y axis: number of applicants                               │
+└──────────────────────────────────────────────────────────────┘
+```
+
+استخدم بيانات mock (seed applications) لرسم الـ charts. إن لم تكن كافية، ولّد بيانات إضافية وهمية لـ 6 أشهر سابقة.
+
+### Recharts setup
+- استخدم ألوان لَمَّة: clay (#B85C3E), saffron (#E8A93C), teal (#2A5F5A), success (#4A7C59)
+- تكييف RTL: اقلب المحاور في الوضع العربي إن أمكن
+- Tooltip بأسلوب لَمَّة (paper background, ink text, soft shadow)
+
+---
+
+## 📄 Tab 4: الرسائل (`/dashboard/host/messages`)
+
+Placeholder page بسيطة:
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│ [Icon: MessageSquare كبير]                                   │
+│ "الرسائل" (h1)                                               │
+│ "قريباً: تواصل مباشر مع المتقدمين والمقبولين"                │
+│                                                               │
+│ Illustration SVG (نفس بأسلوب lamma)                          │
+│                                                               │
+│ Button: "العودة للطلبات"                                      │
+└──────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 📄 نموذج إنشاء لمة (`/dashboard/host/new`)
+
+### Multi-step form (5 steps)
+
+```
+Step 1: الأساسيات
+  - Title (AR + EN) *
+  - Topic (select from 6 topics) *
+  - Format (MEN_ONLY/WOMEN_ONLY/FAMILY/MIXED) *
+  - Cover image (URL only — no upload in demo)
+
+Step 2: التوقيت والمكان
+  - Start date/time *
+  - End date/time *
+  - Prayer-aware toggle (default: on)
+  - Venue name (AR + EN) *
+  - Venue address (AR + EN) *
+  - Venue notes (parking, access)
+  - "إخفاء الموقع حتى الموافقة" toggle (default: off)
+
+Step 3: السعة والسعر
+  - Capacity min (default: 10)
+  - Capacity max * (15-80)
+  - Price KWD (default: 0 = free)
+  - Is free toggle
+  - Applications open date *
+  - Applications close date *
+
+Step 4: المحتوى التحريري
+  - Description (AR + EN) — long form, 200+ chars
+  - Who should attend (bullet list, 3-5 items)
+  - What to expect (bullet list, 3-5 items)
+  - Application questions (dynamic add/remove)
+    - Each: question text (AR+EN) + type (text/textarea/select) + required
+
+Step 5: مراجعة وإنشاء
+  - Summary of all fields
+  - Declaration: "أتحمّل مسؤولية محتوى اللمة وقواعدها"
+  - Submit → saves to local "host-created-gatherings" store
+  - Toast: "تم إنشاء اللمة (مسودة)"
+  - Redirect to /dashboard/host/gatherings
+```
+
+### Store for host-created gatherings
+
+`src/lib/host-gatherings-store.ts` (Zustand + persist):
+
+```typescript
+'use client';
+
+import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
+import { z } from 'zod';
+
+const HostGatheringSchema = z.object({
+  id: z.string(),
+  slug: z.string(),
+  hostHandle: z.string(),
+  // ... كل الحقول من gatherings.ts schema
+  status: z.literal('DRAFT').default('DRAFT'),
+  createdAt: z.string(),
+});
+
+type HostGathering = z.infer<typeof HostGatheringSchema>;
+
+interface State {
+  gatherings: HostGathering[];
+  create: (data: Omit<HostGathering, 'id' | 'createdAt' | 'status'>) => HostGathering;
+  // لا edit/delete في هذه المرحلة
+}
+
+export const useHostGatheringsStore = create<State>()(
+  persist(
+    (set) => ({
+      gatherings: [],
+      create: (data) => {
+        const newG: HostGathering = {
+          ...data,
+          id: `host-g-${Date.now()}`,
+          status: 'DRAFT',
+          createdAt: new Date().toISOString(),
+        };
+        set(state => ({ gatherings: [...state.gatherings, newG] }));
+        return newG;
+      },
+    }),
+    { name: 'lamma-host-gatherings' }
+  )
+);
+```
+
+### Tab 1 (Gatherings) integration
+- اعرض الـ gatherings من `src/data/gatherings.ts` (static) + الـ gatherings من `useHostGatheringsStore` (local)
+- الـ gatherings الجديدة تظهر بـ status: DRAFT
+- DRAFT gatherings لها badge "مسودة" بدلاً من الـ status العادي
+
+---
+
+## 🔔 إشعارات الـ host
+
+### Toast notifications
+عند تغيير حالة طلب (approve/reject/waitlist):
+- Title: "تم قبول الطلب" / "تم الرفض" / "أُضيف لقائمة الانتظار"
+- Description: "{name} - {gathering}"
+- Variant: success / destructive / default
+
+### Notification store (for badge count)
+
+`src/lib/notifications-store.ts` (Zustand + persist):
+```typescript
+'use client';
+
+import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
+
+interface Notification {
+  id: string;
+  type: 'new_application' | 'application_cancelled' | 'gathering_published' | 'system';
+  title: { ar: string; en: string };
+  body: { ar: string; en: string };
+  data?: Record<string, unknown>;
+  isRead: boolean;
+  createdAt: string;
+}
+
+interface State {
+  notifications: Notification[];
+  unreadCount: number;
+  add: (n: Omit<Notification, 'id' | 'isRead' | 'createdAt'>) => void;
+  markAllRead: () => void;
+  markRead: (id: string) => void;
+}
+
+export const useNotificationsStore = create<State>()(
+  persist(
+    (set, get) => ({
+      notifications: [
+        // Seed: 2-3 notifications وهمية
+        {
+          id: 'notif-1',
+          type: 'new_application',
+          title: { ar: 'طلب جديد', en: 'New application' },
+          body: { ar: 'سارة قدّمت طلباً على "أمسية شعراء كويتيين"', en: 'Sara applied to "Kuwaiti Poets Evening"' },
+          isRead: false,
+          createdAt: new Date(Date.now() - 3600000).toISOString(),
+        },
+        // ...
+      ],
+      unreadCount: 2,
+      add: (n) => set(state => ({
+        notifications: [{ ...n, id: `notif-${Date.now()}`, isRead: false, createdAt: new Date().toISOString() }, ...state.notifications],
+        unreadCount: state.unreadCount + 1,
+      })),
+      markAllRead: () => set(state => ({
+        notifications: state.notifications.map(n => ({ ...n, isRead: true })),
+        unreadCount: 0,
+      })),
+      markRead: (id) => set(state => ({
+        notifications: state.notifications.map(n => n.id === id ? { ...n, isRead: true } : n),
+        unreadCount: Math.max(0, state.unreadCount - 1),
+      })),
+    }),
+    { name: 'lamma-notifications' }
+  )
+);
+```
+
+### NotificationBell component
+أضف لـ `src/components/lamma/SiteHeader.tsx` (للـ hosts فقط):
+- Bell icon مع badge عدد غير المقروء
+- Dropdown يعرض آخر 5 إشعارات
+- "تعليم الكل كمقروء" زر
+
+### Wire new application submission
+عندما يُرسل المستخدم طلباً جديداً (في `ApplyForm.tsx`):
+- إذا كان الـ gathering يخص host مسجّل دخوله حالياً، أضف notification له
+- إن لم يكن host مسجّل (demo scenario)، أضف notification لحساب خالد (إن كان مسجّل)
+
+---
+
+## 🔗 تحديث AccountDropdown
+
+أضف للـ AccountDropdown في `src/components/lamma/auth/AccountDropdown.tsx`:
+- إذا `isUserHost(user.id) === true`، أضف menu item "لوحة الإدارة" → `/dashboard/host`
+- ضعها بين "طلباتي" و "تبديل المستخدم التجريبي"
+
+---
+
+## 📊 إضافة مفاتيح الترجمة
+
+أضف لـ `messages/{ar,en}.json`:
+
+```json
+{
+  "host": {
+    "notHostTitle": "هذه الصفحة لأصحاب التجمعات" / "This page is for hosts only",
+    "notHostDescription": "حسابك ليس مرتبطاً بصفحة صاحب تجمع." / "Your account is not linked to a host profile.",
+    "backToDashboard": "العودة للوحة المستخدم" / "Back to user dashboard",
+    "demoHint": "للتجربة، سجّل الدخول كـ خالد (صاحب)" / "For demo, log in as Khaled (Host)",
+    "hostingAs": "تستضيف كـ" / "Hosting as",
+    "verified": "موثّق" / "Verified",
+    "nav": {
+      "userDashboard": "لوحة المستخدم" / "User dashboard",
+      "gatherings": "تجمعاتي" / "My gatherings",
+      "applications": "الطلبات" / "Applications",
+      "analytics": "الإحصاءات" / "Analytics",
+      "messages": "الرسائل" / "Messages",
+      "newGathering": "لمة جديدة" / "New gathering"
+    },
+    "gatherings": {
+      "title": "تجمعاتي" / "My gatherings",
+      "filters": {
+        "all": "الكل" / "All",
+        "upcoming": "قادمة" / "Upcoming",
+        "past": "سابقة" / "Past",
+        "draft": "مسودة" / "Draft"
+      },
+      "stats": {
+        "applications": "طلبات" / "applications",
+        "approved": "مقبولة" / "approved",
+        "fill": "نسبة الملء" / "fill rate"
+      },
+      "viewApplications": "عرض الطلبات" / "View applications",
+      "viewPublicPage": "الصفحة العامة" / "Public page",
+      "empty": "لا توجد لمات بعد" / "No gatherings yet",
+      "emptyCta": "أنشئ لمة جديدة" / "Create a gathering",
+      "draft": "مسودة" / "Draft"
+    },
+    "applications": {
+      "title": "الطلبات" / "Applications",
+      "filterByGathering": "حسب اللمة" / "By gathering",
+      "allGatherings": "كل اللمات" / "All gatherings",
+      "aiMatchScore": "نتيجة المطابقة الذكية" / "AI match score",
+      "matchHigh": "توافق عالٍ مع الحاضرين" / "High match with attendees",
+      "matchMedium": "توافق متوسط" / "Medium match",
+      "matchLow": "توافق منخفض" / "Low match",
+      "motivation": "الدافع" / "Motivation",
+      "background": "الخلفية" / "Background",
+      "customAnswers": "إجابات مخصصة" / "Custom answers",
+      "logistics": "تفاصيل لوجستية" / "Logistics",
+      "dietary": "قيود غذائية" / "Dietary restrictions",
+      "accessibility": "احتياجات وصول" / "Accessibility needs",
+      "timeline": "سجل الحالة" / "Status timeline",
+      "statuses": {
+        "PENDING": "قيد المراجعة" / "Pending",
+        "APPROVED": "مقبول" / "Approved",
+        "REJECTED": "مرفوض" / "Rejected",
+        "WAITLISTED": "قائمة انتظار" / "Waitlisted",
+        "ATTENDED": "حضر" / "Attended",
+        "NO_SHOW": "لم يحضر" / "No-show",
+        "CANCELLED": "ملغى" / "Cancelled"
+      },
+      "forGathering": "للمة" / "For gathering",
+      "applicant": "المتقدم" / "Applicant",
+      "submittedAgo": "قُدّم {time}" / "Submitted {time}",
+      "viewDetails": "عرض التفاصيل" / "View details",
+      "approve": "قبول" / "Approve",
+      "reject": "رفض" / "Reject",
+      "waitlist": "قائمة" / "Waitlist",
+      "applicationDetail": "تفاصيل الطلب" / "Application detail",
+      "actions": {
+        "approved": {
+          "title": "تم قبول الطلب" / "Application approved",
+          "description": "سيتم إشعار {name} بقبوله" / "{name} will be notified"
+        },
+        "rejected": {
+          "title": "تم رفض الطلب" / "Application rejected",
+          "description": "سيتم إشعار {name} برفضه" / "{name} will be notified"
+        },
+        "waitlisted": {
+          "title": "أُضيف لقائمة الانتظار" / "Added to waitlist",
+          "description": "{name} سينتظر انفتاح مكان" / "{name} will wait for a spot"
+        }
+      },
+      "empty": "لا توجد طلبات في هذه الفئة" / "No applications in this category"
+    },
+    "analytics": {
+      "title": "الإحصاءات" / "Analytics",
+      "totalGatherings": "لمات" / "Gatherings",
+      "totalApplications": "طلبات" / "Applications",
+      "totalApproved": "مقبولة" / "Approved",
+      "avgRating": "متوسط التقييم" / "Average rating",
+      "applicationsOverTime": "الطلبات عبر الزمن" / "Applications over time",
+      "acceptanceRate": "نسبة القبول" / "Acceptance rate",
+      "topGatherings": "أفضل اللمات أداءً" / "Top performing gatherings",
+      "matchScoreDistribution": "توزيع نتائج المطابقة" / "Match score distribution",
+      "last6Months": "آخر 6 أشهر" / "Last 6 months"
+    },
+    "messages": {
+      "title": "الرسائل" / "Messages",
+      "comingSoon": "قريباً: تواصل مباشر مع المتقدمين والمقبولين" / "Coming soon: Direct messaging with applicants and attendees",
+      "backToApplications": "العودة للطلبات" / "Back to applications"
+    },
+    "newGathering": {
+      "title": "لمة جديدة" / "New gathering",
+      "steps": {
+        "1": "الأساسيات" / "Basics",
+        "2": "التوقيت والمكان" / "Time & place",
+        "3": "السعة والسعر" / "Capacity & price",
+        "4": "المحتوى التحريري" / "Editorial content",
+        "5": "مراجعة وإنشاء" / "Review & create"
+      },
+      "titleAr": "العنوان (عربي)" / "Title (Arabic)",
+      "titleEn": "العنوان (إنجليزي)" / "Title (English)",
+      "topic": "الموضوع" / "Topic",
+      "format": "الصيغة" / "Format",
+      "coverImage": "رابط صورة الغلاف" / "Cover image URL",
+      "startDate": "تاريخ ووقت البداية" / "Start date & time",
+      "endDate": "تاريخ ووقت النهاية" / "End date & time",
+      "prayerAware": "محترم لمواقيت الصلاة" / "Prayer-aware",
+      "venueName": "اسم المكان" / "Venue name",
+      "venueAddress": "العنوان" / "Address",
+      "venueNotes": "ملاحظات (موقف سيارات، وصول)" / "Notes (parking, access)",
+      "hideLocation": "إخفاء الموقع حتى الموافقة" / "Hide location until approved",
+      "capacityMin": "الحد الأدنى للحضور" / "Minimum capacity",
+      "capacityMax": "الحد الأقصى للحضور" / "Maximum capacity",
+      "price": "السعر (KWD)" / "Price (KWD)",
+      "isFree": "مجاني" / "Free",
+      "applicationsOpen": "فتح باب التقديم" / "Applications open",
+      "applicationsClose": "إغلاق باب التقديم" / "Applications close",
+      "description": "الوصف التحريري" / "Editorial description",
+      "whoShouldAttend": "لمن هذه اللمة؟" / "Who should attend?",
+      "whatToExpect": "ماذا تتوقع؟" / "What to expect?",
+      "applicationQuestions": "أسئلة مخصصة" / "Custom questions",
+      "addQuestion": "أضف سؤالاً" / "Add question",
+      "questionText": "نص السؤال" / "Question text",
+      "questionType": "نوع السؤال" / "Question type",
+      "questionRequired": "إلزامي" / "Required",
+      "declaration": "أتحمّل مسؤولية محتوى اللمة وقواعدها الثقافية" / "I take responsibility for the gathering's content and cultural rules",
+      "submit": "إنشاء اللمة (مسودة)" / "Create gathering (draft)",
+      "successTitle": "تم إنشاء اللمة" / "Gathering created",
+      "successDescription": "اللمة محفوظة كمسودة. يمكنك مراجعتها وتعديلها." / "Gathering saved as draft. You can review and edit it."
+    }
+  },
+  "notifications": {
+    "title": "الإشعارات" / "Notifications",
+    "markAllRead": "تعليم الكل كمقروء" / "Mark all as read",
+    "empty": "لا توجد إشعارات" / "No notifications",
+    "viewAll": "عرض الكل" / "View all",
+    "types": {
+      "new_application": "طلب جديد" / "New application",
+      "application_cancelled": "إلغاء طلب" / "Application cancelled",
+      "gathering_published": "نُشرت لمة" / "Gathering published",
+      "system": "إشعار نظام" / "System notification"
+    }
+  }
+}
+```
+
+---
+
+## 📋 قائمة التحقق النهائية (Must Pass)
+
+- [ ] `bun run lint` — 0 errors, 0 warnings
+- [ ] dev server يعمل، `dev.log` نظيف
+- [ ] تسجيل الدخول كخالد يُظهر "لوحة الإدارة" في AccountDropdown
+- [ ] AccountDropdown يحتوي "لوحة الإدارة" للـ hosts فقط (نورة/أحمد/سارة لا يرونه)
+- [ ] `/dashboard/host` يعيد توجيه لـ `/dashboard/host/gatherings`
+- [ ] HostSidebar يعرض الـ 4 tabs + زر "لمة جديدة" + badge للطلبات المعلّقة
+- [ ] `/dashboard/host/gatherings` يعرض لمات خالد (3-4 لمات) مع stats
+- [ ] `/dashboard/host/applications` يعرض seed applications (12-18 طلب)
+- [ ] فلترة باللمة + بالحالة تعمل
+- [ ] ApplicationReviewCard يعرض match score visualization
+- [ ] Approve/Reject/Waitlist يحدّث الحالة + toast
+- [ ] ApplicationDetailDialog يعرض كل التفاصيل + timeline
+- [ ] `/dashboard/host/analytics` يعرض 4 charts باستخدام recharts
+- [ ] `/dashboard/host/messages` يعرض placeholder "قريباً"
+- [ ] `/dashboard/host/new` يعرض نموذج 5 خطوات
+- [ ] إنشاء لمة جديدة ينشئ DRAFT وينقل لـ gatherings list
+- [ ] DRAFT gathering يظهر في gatherings list بـ "مسودة" badge
+- [ ] NotificationBell في الـ header للـ hosts مع unread count
+- [ ] عندما يُرسل user طلباً، يُضاف notification للـ host
+- [ ] RequireAuth + HostGuard يحميان `/dashboard/host/*`
+- [ ] RTL/LTR يعمل (خاصة في الـ charts)
+- [ ] Mobile responsive (sidebar يصبح top tabs على الموبايل)
+- [ ] ابدأ Agent Browser:
+  - سجّل دخول كخالد
+  - افتح لوحة الإدارة
+  - راجع الطلبات، اعمل approve/reject
+  - افتح analytics، تحقق من الـ charts
+  - أنشئ لمة جديدة بـ 5 خطوات
+  - تحقق أن الـ DRAFT يظهر في الـ gatherings list
+
+---
+
+## 📝 التقرير النهائي المطلوب
+
+1. قائمة الملفات الجديدة/المعدّلة (tree view)
+2. لقطة `bun run lint`
+3. لقطة `curl /api/v1/health`
+4. سيناريو اختبار كامل (step by step):
+   - تسجيل دخول كخالد
+   - مراجعة طلب (approve/reject)
+   - فتح analytics
+   - إنشاء لمة جديدة (5 steps)
+   - التحقق من ظهور الإشعار
+5. لقطة شاشة Agent Browser لـ:
+   - Applications review grid مع match score bars
+   - Analytics page مع 4 charts
+   - Multi-step create form (step 4: editorial content)
+6. أي قرارات معمارية / انحرافات عن المواصفات
+7. ما الذي يحتاجه Phase 3 (AI matching + topics/letters enrichment) ليعمل فوق هذا
+
+---
+
+## ⚠️ قواعد صارمة
+
+1. **لا تتجاوز نطاق هذه المرحلة** — لا تبني real messaging (Phase 4), لا real AI (Phase 3)
+2. **localStorage فقط** — لا backend، لا API calls (PROD-ONLY comments)
+3. **كل النصوص في `messages/*.json`** — لا hardcoded strings
+4. **Native checkboxes** — لا Radix Checkbox (لا يعمل في WASM)
+5. **استخدم logical properties** (`ms-`, `me-`, `ps-`, `pe-`)
+6. **TypeScript strict** — لا `any`
+7. **Zod validation** لكل schema
+8. **recharts** للـ charts (موجود)
+9. **احترم الـ file structure**: `src/components/lamma/host/`
+10. **اكتب worklog في `/home/z/my-project/worklog.md`** (append)
+11. **اقرأ `dev.log` بعد كل تغيير كبير**
+12. **ابدأ Agent Browser قبل الإبلاغ بالانتهاء**
+13. **HostGuard + RequireAuth** معاً يحمون `/dashboard/host/*`
+14. **Seed applications** كافية لرسم charts معقولة
+
+ابدأ الآن.
+```
+
+---
