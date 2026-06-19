@@ -7,8 +7,9 @@ import { Users, Clock, ListPlus } from 'lucide-react';
 export function CapacityCard({ gathering, className }: { gathering: Gathering; className?: string }) {
   const t = useTranslations('gatherings');
   const approved = gathering.approvedAttendeesCount;
-  const pending = gathering.pendingCount;
-  const waitlisted = gathering.waitlistedCount;
+  const pending = gathering.pendingCount ?? 0;
+  const waitlisted = gathering.waitlistedCount ?? 0;
+  const approvedAttendees = gathering.approvedAttendees ?? [];
   const capacity = gathering.capacityMax;
   const fillPct = capacity > 0 ? Math.min(100, Math.round((approved / capacity) * 100)) : 0;
   const isFull = approved >= capacity;
@@ -32,10 +33,10 @@ export function CapacityCard({ gathering, className }: { gathering: Gathering; c
         )}
         {isFull && <p className="mt-2 text-xs text-saffron">{t('fullyBooked' as never) as string || 'مكتمل'}</p>}
       </div>
-      {gathering.approvedAttendees?.length > 0 && (
+      {approvedAttendees.length > 0 && (
         <div className="mt-5 border-t border-stone/10 pt-4">
           <div className="flex flex-wrap gap-2">
-            {gathering.approvedAttendees.slice(0, 8).map((a) => (
+            {approvedAttendees.slice(0, 8).map((a) => (
               <div key={a.id} className="relative size-9 overflow-hidden rounded-full bg-secondary ring-2 ring-paper" title={a.name}>
                 <Image src={a.avatarUrl} alt={a.name} fill sizes="36px" className="object-cover" />
               </div>

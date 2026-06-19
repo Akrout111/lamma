@@ -12,7 +12,7 @@ export function LocationCard({ gathering, className }: { gathering: Gathering; c
   return (
     <section className={'overflow-hidden rounded-2xl bg-card ring-1 ring-border/60 ' + (className ?? '')}>
       <div className="relative aspect-[4/3] w-full overflow-hidden bg-sand">
-        {gathering.isLocationRevealed ? (
+        {gathering.isLocationRevealed !== false ? (
           <svg viewBox="0 0 400 300" className="size-full" role="img" aria-label={t('mapPreview')}>
             <defs>
               <pattern id="mapGrid" width="20" height="20" patternUnits="userSpaceOnUse"><path d="M 20 0 L 0 0 0 20" fill="none" stroke="#8B8478" strokeWidth="0.5" opacity="0.3" /></pattern>
@@ -36,7 +36,7 @@ export function LocationCard({ gathering, className }: { gathering: Gathering; c
         <h3 className="flex items-center gap-2 font-display text-lg font-semibold text-ink"><MapPin className="size-4 text-clay" />{gathering.venueName[locale]}</h3>
         <p className="mt-2 flex items-start gap-1.5 text-sm text-stone"><Navigation className="mt-0.5 size-3.5 shrink-0" />{gathering.venueAddress[locale]}</p>
         <p className="mt-2 text-xs italic text-stone/80">{gathering.venueNotes[locale]}</p>
-        {!gathering.isLocationRevealed && <p className="mt-3 flex items-center gap-1.5 text-xs text-saffron"><Lock className="size-3.5" />{t('locationHidden')}</p>}
+        {gathering.isLocationRevealed === false && <p className="mt-3 flex items-center gap-1.5 text-xs text-saffron"><Lock className="size-3.5" />{t('locationHidden')}</p>}
       </div>
     </section>
   );

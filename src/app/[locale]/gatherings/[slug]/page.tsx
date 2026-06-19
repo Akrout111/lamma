@@ -15,7 +15,7 @@ import { DetailHostCard } from '@/components/lamma/gatherings/detail/DetailHostC
 import { gatherings, gatheringsBySlug } from '@/data/gatherings';
 import { getTopic } from '@/data/topics';
 import { getHost } from '@/data/hosts';
-import { checkPrayerConflict } from '@/data/prayer-times';
+import { checkPrayerConflict, getPrayerTimeForDate } from '@/data/prayer-times';
 import { formatDateRange, formatKwd } from '@/lib/format';
 import { CalendarDays, MapPin, Check, Users } from 'lucide-react';
 
@@ -35,8 +35,13 @@ export default async function GatheringDetailPage({ params }: Props) {
   const gathering = gatheringsBySlug[slug]; if (!gathering) notFound();
   const topic = getTopic(gathering.topicSlug); const host = getHost(gathering.hostHandle);
   const conflict = checkPrayerConflict(new Date(gathering.startDate), new Date(gathering.endDate));
+  const prayerDay = getPrayerTimeForDate(new Date(gathering.startDate));
+  const prayerKey = (conflict.prayer ?? 'isha') as 'fajr' | 'dhuhr' | 'asr' | 'maghrib' | 'isha';
+  const prayerTime = prayerDay ? prayerDay[prayerKey] : undefined;
   const related = gatherings.filter((g) => g.topicSlug === gathering.topicSlug && g.slug !== gathering.slug).slice(0, 3);
   const priceLabel = gathering.isFree ? t('free') : `${formatKwd(gathering.priceKwd, l)} ${t('kwd')}`;
+  const whoShouldAttend = gathering.whoShouldAttend ?? [];
+  const whatToExpect = gathering.whatToExpect ?? [];
 
   return (
     <article>
@@ -49,7 +54,7 @@ export default async function GatheringDetailPage({ params }: Props) {
           <div className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-2 text-paper/90">
             <span className="flex items-center gap-2 text-sm"><CalendarDays className="size-4" />{formatDateRange(gathering.startDate, gathering.endDate, l)}</span>
             <span className="flex items-center gap-2 text-sm"><MapPin className="size-4" />{gathering.venueName[l]}</span>
-            {gathering.isPrayerAware && <PrayerTimeBadge startDate={gathering.startDate} endDate={gathering.endDate} variant="compact" />}
+            {gathering.isPrayerAware && <PrayerTimeBadge prayerKey={prayerKey} time={prayerTime} />}
           </div>
         </div></div>
       </header>
@@ -57,8 +62,8 @@ export default async function GatheringDetailPage({ params }: Props) {
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
           <div className="lg:col-span-8">
             <p className="text-lg leading-relaxed text-ink/85 first-letter:float-start first-letter:me-2 first-letter:font-display first-letter:text-6xl first-letter:font-semibold first-letter:leading-[0.8] first-letter:text-clay">{gathering.description[l]}</p>
-            {gathering.whoShouldAttend?.length > 0 && (<section className="mt-12"><h2 className="mb-4 font-display text-2xl font-semibold text-ink">{t('whoShouldAttend')}</h2><ul className="space-y-2.5">{gathering.whoShouldAttend.map((item, i) => (<li key={i} className="flex items-start gap-2.5 text-ink/80"><span className="mt-2 text-xs text-clay">●</span><span className="leading-relaxed">{item[l]}</span></li>))}</ul></section>)}
-            {gathering.whatToExpect?.length > 0 && (<section className="mt-12"><h2 className="mb-4 font-display text-2xl font-semibold text-ink">{t('whatToExpect')}</h2><ul className="space-y-2.5">{gathering.whatToExpect.map((item, i) => (<li key={i} className="flex items-start gap-2.5 text-ink/80"><Check className="mt-1 size-4 shrink-0 text-success" /><span className="leading-relaxed">{item[l]}</span></li>))}</ul></section>)}
+            {whoShouldAttend.length > 0 && (<section className="mt-12"><h2 className="mb-4 font-display text-2xl font-semibold text-ink">{t('whoShouldAttend')}</h2><ul className="space-y-2.5">{whoShouldAttend.map((item, i) => (<li key={i} className="flex items-start gap-2.5 text-ink/80"><span className="mt-2 text-xs text-clay">●</span><span className="leading-relaxed">{item[l]}</span></li>))}</ul></section>)}
+            {whatToExpect.length > 0 && (<section className="mt-12"><h2 className="mb-4 font-display text-2xl font-semibold text-ink">{t('whatToExpect')}</h2><ul className="space-y-2.5">{whatToExpect.map((item, i) => (<li key={i} className="flex items-start gap-2.5 text-ink/80"><Check className="mt-1 size-4 shrink-0 text-success" /><span className="leading-relaxed">{item[l]}</span></li>))}</ul></section>)}
             <section className="mt-12"><SimilarAttendeesPreview gathering={gathering} /></section>
             {gathering.galleryUrls.length > 0 && (<section className="mt-12"><h2 className="mb-4 font-display text-2xl font-semibold text-ink">{t('gallery')}</h2><div className="grid grid-cols-2 gap-4">{gathering.galleryUrls.map((url, i) => (<div key={i} className="relative aspect-[4/5] overflow-hidden rounded-xl bg-secondary"><Image src={url} alt="" fill sizes="(max-width: 768px) 50vw, 33vw" className="object-cover" /></div>))}</div></section>)}
             {related.length > 0 && (<section className="mt-12"><h2 className="mb-4 font-display text-2xl font-semibold text-ink">{t('related')}</h2><div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">{related.map((g) => <GatheringCard key={g.slug} gathering={g} />)}</div></section>)}

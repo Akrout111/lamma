@@ -3,7 +3,7 @@ import { demoUsers } from './demo-users';
 import type { Application } from '@/lib/applications-store';
 import { computeMatchScore } from '@/lib/matching/engine';
 
-const khaledGatherings = gatherings.filter((g) => g.hostHandle === '@mohammed_poet');
+const khaledGatherings = gatherings.filter((g) => g.hostHandle === '@khaled_artist');
 const applicants = demoUsers.filter((u) => u.id !== 'user-khaled');
 
 const motivationsAr = [

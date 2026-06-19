@@ -50,6 +50,18 @@ export const gatherings: Gathering[] = [
     topicSlug: 'memory-of-place',
     hostHandle: '@abdullah_kuwaiti_historian',
     approvedAttendeesCount: 14,
+    pendingCount: 6,
+    whoShouldAttend: [
+      { ar: 'من يهتم بتاريخ الكويت الشعبي قبل النفط', en: "Anyone interested in Kuwait's pre-oil popular history" },
+      { ar: 'الكتاب والصحفيون والباحثون في الذاكرة الحضرية', en: 'Writers, journalists, and researchers of urban memory' },
+      { ar: 'من يفضّل المشي البطيء على الجولات السياحية', en: 'Those who prefer slow walking over tourist tours' },
+    ],
+    whatToExpect: [
+      { ar: 'جولة مشي مدتها ثلاث ساعات', en: 'A three-hour walking tour' },
+      { ar: 'دفتر ملاحظات وقلم (يُوفّران)', en: 'A notebook and pen (provided)' },
+      { ar: 'شاي وتمر في الختام', en: 'Tea and dates at the end' },
+      { ar: 'نقاشٌ جماعي حول سؤالٍ واحد', en: 'A group discussion around a single question' },
+    ],
   },
   {
     slug: 'food-sudanese-table',
@@ -93,6 +105,7 @@ export const gatherings: Gathering[] = [
     topicSlug: 'food-stories',
     hostHandle: '@amal_sudani_chef',
     approvedAttendeesCount: 9,
+    pendingCount: 4,
   },
   {
     slug: 'light-shuwaikh-photography',
@@ -136,6 +149,18 @@ export const gatherings: Gathering[] = [
     topicSlug: 'light-and-shadow',
     hostHandle: '@noura_photographer',
     approvedAttendeesCount: 7,
+    pendingCount: 5,
+    whoShouldAttend: [
+      { ar: 'المبتدئون في التصوير الفيلمي', en: 'Beginners in film photography' },
+      { ar: 'من يريد أن يتعلّم الرؤية لا التقنية', en: 'Those who want to learn seeing, not technique' },
+      { ar: 'الصابرون الذين لا يخافون الصمت', en: 'The patient who do not fear silence' },
+    ],
+    whatToExpect: [
+      { ar: 'خمس ساعات في المستودع', en: 'Five hours in the warehouse' },
+      { ar: 'لفّة فيلم 35 مم واحدة (تُوفّر)', en: 'One 35mm film roll (provided)' },
+      { ar: 'تطبيق طبعةٍ واحدة في الغرفة المظلمة', en: 'One print developed in the darkroom' },
+      { ar: 'قهوة سوداء واستراحة صامتة', en: 'Black coffee and a silent break' },
+    ],
   },
   {
     slug: 'voices-poets-evening',
@@ -176,8 +201,9 @@ export const gatherings: Gathering[] = [
     applicationsOpenAt: '2026-08-10T00:00:00+03:00',
     applicationsCloseAt: '2026-09-07T23:59:59+03:00',
     topicSlug: 'new-voices',
-    hostHandle: '@mohammed_poet',
+    hostHandle: '@khaled_artist',
     approvedAttendeesCount: 22,
+    pendingCount: 8,
   },
   {
     slug: 'books-cities-of-salt',
@@ -221,6 +247,7 @@ export const gatherings: Gathering[] = [
     topicSlug: 'soul-of-books',
     hostHandle: '@fatima_literary',
     approvedAttendeesCount: 12,
+    pendingCount: 3,
   },
   {
     slug: 'afterwork-engineers',
@@ -263,6 +290,7 @@ export const gatherings: Gathering[] = [
     topicSlug: 'after-work',
     hostHandle: '@abdullah_kuwaiti_historian',
     approvedAttendeesCount: 18,
+    pendingCount: 9,
   },
   {
     slug: 'memory-old-towers',
@@ -343,7 +371,7 @@ export const gatherings: Gathering[] = [
     applicationsOpenAt: '2025-10-15T00:00:00+03:00',
     applicationsCloseAt: '2025-11-15T23:59:59+03:00',
     topicSlug: 'new-voices',
-    hostHandle: '@mohammed_poet',
+    hostHandle: '@khaled_artist',
     approvedAttendeesCount: 35,
   },
 ];

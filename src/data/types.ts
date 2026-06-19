@@ -104,6 +104,14 @@ export type Host = z.infer<typeof hostSchema>;
 /* Gathering                                                           */
 /* ------------------------------------------------------------------ */
 
+/** A reference to an approved attendee (used for capacity avatars). */
+export const attendeeRefSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1),
+  avatarUrl: z.string().min(1),
+});
+export type AttendeeRef = z.infer<typeof attendeeRefSchema>;
+
 export const gatheringSchema = z.object({
   slug: z.string().min(1),
   title: localizedStringSchema,
@@ -130,6 +138,15 @@ export const gatheringSchema = z.object({
   topicSlug: z.string().min(1),
   hostHandle: z.string().regex(/^@/),
   approvedAttendeesCount: z.number().int().nonnegative(),
+  // Optional fields shared with HostGathering. Static public gatherings
+  // populate these to enrich the detail page; host-created gatherings
+  // populate them via the host-gatherings store.
+  isLocationRevealed: z.boolean().optional(),
+  pendingCount: z.number().int().nonnegative().optional(),
+  waitlistedCount: z.number().int().nonnegative().optional(),
+  approvedAttendees: z.array(attendeeRefSchema).optional(),
+  whoShouldAttend: z.array(localizedStringSchema).optional(),
+  whatToExpect: z.array(localizedStringSchema).optional(),
 });
 export type Gathering = z.infer<typeof gatheringSchema>;
 

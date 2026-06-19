@@ -12,6 +12,7 @@ import { PrayerTimeBadge } from '@/components/lamma/PrayerTimeBadge';
 import { localized } from '@/lib/use-localized';
 import { cn } from '@/lib/utils';
 import { Link } from '@/i18n/routing';
+import { checkPrayerConflict, getPrayerTimeForDate } from '@/data/prayer-times';
 import { Send, Heart, Star, Users, Clock, MessageSquare, Quote } from 'lucide-react';
 import type { Gathering } from '@/data/types';
 
@@ -23,6 +24,11 @@ export function LiveCompanion({ gathering }: { gathering: Gathering }) {
   const t = useTranslations('live');
   const locale = useLocale() as 'ar' | 'en';
   const { user, hasHydrated } = useAuthStore();
+
+  const prayerConflict = checkPrayerConflict(new Date(gathering.startDate), new Date(gathering.endDate));
+  const prayerDay = getPrayerTimeForDate(new Date(gathering.startDate));
+  const prayerKey = (prayerConflict.prayer ?? 'isha') as 'fajr' | 'dhuhr' | 'asr' | 'maghrib' | 'isha';
+  const prayerTime = prayerDay ? prayerDay[prayerKey] : undefined;
 
   const [socket, setSocket] = useState<Socket | null>(null);
   const [connected, setConnected] = useState(false);
@@ -81,7 +87,7 @@ export function LiveCompanion({ gathering }: { gathering: Gathering }) {
             <span className="flex items-center gap-1.5"><Users className="size-3.5" />{attendees.length} {t('hereNow')}</span>
           </div>
         </div>
-        <PrayerTimeBadge startDate={gathering.startDate} endDate={gathering.endDate} variant="compact" />
+        <PrayerTimeBadge prayerKey={prayerKey} time={prayerTime} />
       </div>
 
       <div className="mb-4 inline-flex h-10 items-center justify-center rounded-lg bg-sand p-1">

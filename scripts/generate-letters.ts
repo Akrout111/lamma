@@ -56,7 +56,7 @@ const letterSpecs: LetterSpec[] = [
     readTimeMinutes: 11,
     publishedAt: '2025-12-02T08:00:00+03:00',
     topicSlug: 'new-voices',
-    authorHostHandle: '@mohammed_poet',
+    authorHostHandle: '@khaled_artist',
     gatheringSlug: 'voices-rhythm-music',
     theme: {
       ar: 'مقالٌ تأمليّ عن أمسية الإيقاع والإيقاع الكويتي التي اختتمت. اكتب عن الصمت الذي سبق النقرة الأولى، عن الطريقة التي يصير بها حلقةٌ من الغرباء جسداً واحداً يتنفّس بالإيقاع، عن صوت المرواس تحديداً وكيف يقفز بين الأيدي، عن الشاي الذي برد لأن أحداً لم يرد أن يكسر التعويذة، وعن المشي عائدين إلى البيت حيث بدت المدينة وكأنها أُعيد ضبطها على نغمٍ آخر.',

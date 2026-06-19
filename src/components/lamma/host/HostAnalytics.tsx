@@ -1,15 +1,17 @@
 'use client';
 import { useMemo } from 'react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { useAuthStore } from '@/lib/auth-store';
 import { useApplicationsStore } from '@/lib/applications-store';
 import { getUserHost, getHostGatherings } from '@/lib/host-helpers';
+import { localized } from '@/lib/use-localized';
 import { BarChart, Bar, PieChart, Pie, Cell, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
 const C = { clay: '#B85C3E', saffron: '#E8A93C', teal: '#2A5F5A', success: '#4A7C59', stone: '#8B8478', paper: '#FBF8F2', ink: '#1A1614' };
 
 export function HostAnalytics() {
   const t = useTranslations('host.analytics');
+  const locale = useLocale() as 'ar' | 'en';
   const { user, hasHydrated } = useAuthStore();
   const { getByHost } = useApplicationsStore();
   const host = hasHydrated && user ? getUserHost(user.id) : null;
@@ -17,8 +19,8 @@ export function HostAnalytics() {
   const apps = hasHydrated && user ? getByHost(user.id) : [];
   const stats = useMemo(() => ({ totalGatherings: hostGatherings.length, totalApplications: apps.length, totalApproved: apps.filter((a) => a.status === 'APPROVED').length, avgRating: (host?.avgRating ?? 0).toFixed(1) }), [apps, hostGatherings, host]);
   const overTimeData = useMemo(() => [1,2,3,4,5,6].map((m, i) => { const monthApps = apps.filter((a) => { const d = new Date(a.createdAt); return d.getMonth() === (new Date().getMonth() - 5 + i + 12) % 12; }); return { month: `${m}`, pending: monthApps.filter((a) => a.status === 'PENDING').length, approved: monthApps.filter((a) => a.status === 'APPROVED').length, rejected: monthApps.filter((a) => a.status === 'REJECTED').length }; }), [apps]);
-  const acceptanceData = useMemo(() => hostGatherings.map((g) => { const gApps = apps.filter((a) => a.gatheringSlug === g.slug); return { name: g.title.ar.slice(0, 20), approved: gApps.filter((a) => a.status === 'APPROVED').length, pending: gApps.filter((a) => a.status === 'PENDING').length, rejected: gApps.filter((a) => a.status === 'REJECTED').length }; }), [hostGatherings, apps]);
-  const topGatheringsData = useMemo(() => hostGatherings.map((g) => { const gApps = apps.filter((a) => a.gatheringSlug === g.slug); const approved = gApps.filter((a) => a.status === 'APPROVED').length; return { name: g.title.ar.slice(0, 25), fill: g.capacityMax > 0 ? Math.round((approved / g.capacityMax) * 100) : 0 }; }).sort((a, b) => b.fill - a.fill).slice(0, 5), [hostGatherings, apps]);
+  const acceptanceData = useMemo(() => hostGatherings.map((g) => { const gApps = apps.filter((a) => a.gatheringSlug === g.slug); return { name: localized(g.title, locale).slice(0, 20), approved: gApps.filter((a) => a.status === 'APPROVED').length, pending: gApps.filter((a) => a.status === 'PENDING').length, rejected: gApps.filter((a) => a.status === 'REJECTED').length }; }), [hostGatherings, apps, locale]);
+  const topGatheringsData = useMemo(() => hostGatherings.map((g) => { const gApps = apps.filter((a) => a.gatheringSlug === g.slug); const approved = gApps.filter((a) => a.status === 'APPROVED').length; return { name: localized(g.title, locale).slice(0, 25), fill: g.capacityMax > 0 ? Math.round((approved / g.capacityMax) * 100) : 0 }; }).sort((a, b) => b.fill - a.fill).slice(0, 5), [hostGatherings, apps, locale]);
   const matchDistData = useMemo(() => ['60-69','70-79','80-89','90-100'].map((b) => { const [lo, hi] = b.split('-').map(Number); return { range: b, count: apps.filter((a) => { const s = a.matchScore ?? 0; return s >= lo && s <= hi; }).length }; }), [apps]);
   if (!hasHydrated || !user || !host) return null;
   const ts = { backgroundColor: C.paper, border: `1px solid ${C.stone}33`, borderRadius: '8px', color: C.ink, fontSize: '12px' };

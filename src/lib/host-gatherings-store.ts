@@ -28,14 +28,20 @@ export const hostGatheringSchema = z.object({
   createdAt: z.string(),
 });
 export type HostGathering = z.infer<typeof hostGatheringSchema>;
+/** Input type — fields with schema defaults become optional. */
+export type HostGatheringInput = Omit<z.input<typeof hostGatheringSchema>, 'id' | 'createdAt' | 'status'>;
 
-interface State { gatherings: HostGathering[]; hasHydrated: boolean; setHasHydrated: (v: boolean) => void; create: (data: Omit<HostGathering, 'id' | 'createdAt' | 'status'>) => HostGathering; }
+interface State { gatherings: HostGathering[]; hasHydrated: boolean; setHasHydrated: (v: boolean) => void; create: (data: HostGatheringInput) => HostGathering; }
 
 export const useHostGatheringsStore = create<State>()(
   persist(
     (set) => ({
       gatherings: [], hasHydrated: false, setHasHydrated: (v) => set({ hasHydrated: v }),
-      create: (data) => { const newG: HostGathering = { ...data, id: `host-g-${Date.now()}`, status: 'DRAFT', createdAt: new Date().toISOString() }; set((s) => ({ gatherings: [...s.gatherings, newG] })); return newG; },
+      create: (data) => {
+        const newG = hostGatheringSchema.parse({ ...data, id: `host-g-${Date.now()}`, status: 'DRAFT', createdAt: new Date().toISOString() });
+        set((s) => ({ gatherings: [...s.gatherings, newG] }));
+        return newG;
+      },
     }),
     { name: 'lamma-host-gatherings', onRehydrateStorage: () => (s) => { s?.setHasHydrated(true); } },
   ),

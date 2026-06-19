@@ -30,25 +30,33 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
-.env*
+# env files — keep .env.example tracked, ignore real secrets
+.env
+.env.local
+.env.*.local
 
 # vercel
 .vercel
-
 
 # typescript
 *.tsbuildinfo
 next-env.d.ts
 local-*
+
+# local database (SQLite) — created by `bun run db:push`
+db/*.db
+db/*.db-journal
+
+# agent / build artifacts (internal)
 .claude
 .z-ai-config
 *.log
 dev.log
 dev.out.log
+server.log
+worklog.md
 test
 prompt
 
-server.log
-# Skills directory
+# Skills directory (sandbox-only skill sources, not part of the app)
 /skills/

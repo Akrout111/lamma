@@ -37,7 +37,7 @@ export const letters: Letter[] = [
     "readTimeMinutes": 11,
     "publishedAt": "2025-12-02T08:00:00+03:00",
     "topicSlug": "new-voices",
-    "authorHostHandle": "@mohammed_poet",
+    "authorHostHandle": "@khaled_artist",
     "gatheringSlug": "voices-rhythm-music"
   },
   {
