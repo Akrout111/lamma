@@ -162,7 +162,13 @@
     "featured": "الرسالة المميّزة",
     "moreLetters": "المزيد من الرسائل",
     "aiSummaryLabel": "ملخص بالذكاء الاصطناعي",
-    "moreLettersTitle": "اقرأ أيضاً"
+    "moreLettersTitle": "اقرأ أيضاً",
+    "title": "رسائل من لمة",
+    "subtitle": "حكاياتٌ تُروى بعد كل تجمّع",
+    "description": "كل لمةٍ تترك أثراً، وهذه الرسائل تحفظ ذلك الأثر.",
+    "share": "شارك",
+    "copyLink": "انسخ الرابط",
+    "aboutAuthor": "عن الكاتب"
   },
   "prayer": {
     "label": "مواقيت الصلاة",
@@ -516,7 +522,11 @@
       "application": "التقديم",
       "hosting": "الاستضافة",
       "payment": "الدفع",
-      "conduct": "السلوك"
+      "conduct": "السلوك",
+      "gatherings": "التجمعات والحضور",
+      "hosts": "أصحاب التجمعات",
+      "payments": "المدفوعات والإلغاء",
+      "tech": "التقنية والخصوصية"
     },
     "q1": "ما هي لَمَّة؟",
     "a1": "لَمَّة منصّة كويتية لتجمعاتٍ حميمية مُنتقاة. كل لمةٍ تجمّعٌ صغير (٨–٥٠ شخصاً) يستضيفه شخصٌ يعرف ضيوفه، حول موضوعٍ تحريري محدّد.",
@@ -559,7 +569,10 @@
     "q20": "كيف أتواصل معكم؟",
     "a20": "عبر hello@lamma.kw أو رسالة مباشرة على إنستغرام @lamma.kw. نردّ خلال ٤٨ ساعة.",
     "ctaTitle": "لم تجد إجابتك؟",
-    "ctaButton": "راسلنا"
+    "ctaButton": "راسلنا",
+    "notFound": "لم تجد إجابتك؟",
+    "contactCta": "تواصل معنا",
+    "breadcrumbs": "أسئلة شائعة"
   },
   "notFound": {
     "title": "ضللت الطريق",
@@ -692,7 +705,12 @@
     "messages": {
       "title": "الرسائل",
       "comingSoon": "قريباً",
-      "backToApplications": "العودة للطلبات"
+      "backToApplications": "العودة للطلبات",
+      "subtitle": "تواصل مباشر مع المتقدمين",
+      "conversations": "المحادثات",
+      "empty": "لا توجد محادثات",
+      "selectConversation": "اختر محادثة",
+      "messagePlaceholder": "اكتب رسالة..."
     },
     "newGathering": {
       "title": "لمة جديدة",
@@ -733,7 +751,17 @@
     "title": "الإشعارات",
     "markAllRead": "تعليم الكل كمقروء",
     "empty": "لا توجد إشعارات",
-    "viewAll": "عرض الكل"
+    "viewAll": "عرض الكل",
+    "subtitle": "{count} إشعار غير مقروء",
+    "enableBrowserTitle": "تفعيل إشعارات المتصفح",
+    "enableBrowserSubtitle": "احصل على إشعارات فورية للطلبات الجديدة",
+    "enableBrowser": "تفعيل",
+    "enabled": "تم التفعيل!",
+    "enabledBody": "ستصلك الإشعارات الآن",
+    "filters": {
+      "all": "الكل",
+      "unread": "غير مقروء"
+    }
   },
   "applications": {
     "title": "طلباتي",
@@ -790,5 +818,11 @@
     "enterLiveNow": "ادخل اللمة المباشرة",
     "enterLiveEarly": "ادخل مبكراً",
     "tryLiveDemo": "تجربة الرفيق اللحظي"
+  },
+  "pwa": {
+    "installTitle": "ثبّت لَمَّة",
+    "installSubtitle": "وصول أسرع من شاشتك الرئيسية",
+    "install": "تثبيت",
+    "dismiss": "إغلاق"
   }
 }

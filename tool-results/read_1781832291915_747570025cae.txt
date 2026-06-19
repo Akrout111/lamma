@@ -1,0 +1,791 @@
+   999→   999→          '/dashboard',
+  1000→  1000→          '/api',
+  1001→  1001→          '/gatherings/apply',
+  1002→  1002→          '/admin',
+  1003→  1003→        ],
+  1004→  1004→      },
+  1005→  1005→    ],
+  1006→  1006→    sitemap: `${baseUrl}/sitemap.xml`,
+  1007→  1007→    host: baseUrl,
+  1008→  1008→  };
+  1009→  1009→}
+  1010→  1010→```
+  1011→  1011→
+  1012→  1012→### Structured Data (JSON-LD)
+  1013→  1013→
+  1014→  1014→أنشئ `src/components/seo/JsonLd.tsx`:
+  1015→  1015→
+  1016→  1016→```tsx
+  1017→  1017→interface Props {
+  1018→  1018→  data: Record<string, unknown>;
+  1019→  1019→}
+  1020→  1020→
+  1021→  1021→export function JsonLd({ data }: Props) {
+  1022→  1022→  return (
+  1023→  1023→    <script
+  1024→  1024→      type="application/ld+json"
+  1025→  1025→      dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }}
+  1026→  1026→    />
+  1027→  1027→  );
+  1028→  1028→}
+  1029→  1029→```
+  1030→  1030→
+  1031→  1031→في كل صفحة detail، أضف JSON-LD مناسب:
+  1032→  1032→
+  1033→  1033→**Gathering detail:**
+  1034→  1034→```tsx
+  1035→  1035→<JsonLd data={{
+  1036→  1036→  '@context': 'https://schema.org',
+  1037→  1037→  '@type': 'Event',
+  1038→  1038→  name: localized(gathering.title),
+  1039→  1039→  description: localized(gathering.description).slice(0, 200),
+  1040→  1040→  startDate: gathering.startDate,
+  1041→  1041→  endDate: gathering.endDate,
+  1042→  1042→  eventStatus: 'https://schema.org/EventScheduled',
+  1043→  1043→  eventAttendanceMode: 'https://schema.org/OfflineEventAttendanceMode',
+  1044→  1044→  location: {
+  1045→  1045→    '@type': 'Place',
+  1046→  1046→    name: localized(gathering.venueName),
+  1047→  1047→    address: localized(gathering.venueAddress),
+  1048→  1048→  },
+  1049→  1049→  image: gathering.coverImageUrl,
+  1050→  1050→  offers: {
+  1051→  1051→    '@type': 'Offer',
+  1052→  1052→    price: gathering.priceKwd,
+  1053→  1053→    priceCurrency: 'KWD',
+  1054→  1054→    availability: gathering.status === 'APPLICATIONS_OPEN' 
+  1055→  1055→      ? 'https://schema.org/InStock' 
+  1056→  1056→      : 'https://schema.org/OutOfStock',
+  1057→  1057→  },
+  1058→  1058→  organizer: {
+  1059→  1059→    '@type': 'Person',
+  1060→  1060→    name: localized(host.displayName),
+  1061→  1061→  },
+  1062→  1062→}} />
+  1063→  1063→```
+  1064→  1064→
+  1065→  1065→**Letter detail:**
+  1066→  1066→```tsx
+  1067→  1067→<JsonLd data={{
+  1068→  1068→  '@context': 'https://schema.org',
+  1069→  1069→  '@type': 'Article',
+  1070→  1070→  headline: localized(letter.title),
+  1071→  1071→  description: localized(letter.excerpt),
+  1072→  1072→  image: letter.coverImageUrl,
+  1073→  1073→  datePublished: letter.publishedAt,
+  1074→  1074→  author: {
+  1075→  1075→    '@type': 'Person',
+  1076→  1076→    name: localized(author.displayName),
+  1077→  1077→  },
+  1078→  1078→  publisher: {
+  1079→  1079→    '@type': 'Organization',
+  1080→  1080→    name: 'لَمَّة',
+  1081→  1081→  },
+  1082→  1082→}} />
+  1083→  1083→```
+  1084→  1084→
+  1085→  1085→**Host detail:**
+  1086→  1086→```tsx
+  1087→  1087→<JsonLd data={{
+  1088→  1088→  '@context': 'https://schema.org',
+  1089→  1089→  '@type': 'Person',
+  1090→  1090→  name: localized(host.displayName),
+  1091→  1091→  description: localized(host.bio),
+  1092→  1092→  image: host.avatarUrl,
+  1093→  1093→  jobTitle: 'Gathering Host',
+  1094→  1094→  sameAs: [
+  1095→  1095→    host.instagram ? `https://instagram.com/${host.instagram}` : null,
+  1096→  1096→    host.twitter ? `https://twitter.com/${host.twitter}` : null,
+  1097→  1097→  ].filter(Boolean),
+  1098→  1098→}} />
+  1099→  1099→```
+  1100→  1100→
+  1101→  1101→**Breadcrumb on all detail pages:**
+  1102→  1102→```tsx
+  1103→  1103→<JsonLd data={{
+  1104→  1104→  '@context': 'https://schema.org',
+  1105→  1105→  '@type': 'BreadcrumbList',
+  1106→  1106→  itemListElement: [
+  1107→  1107→    { '@type': 'ListItem', position: 1, name: 'الرئيسية', item: '/' },
+  1108→  1108→    { '@type': 'ListItem', position: 2, name: 'تجمعات', item: '/gatherings' },
+  1109→  1109→    { '@type': 'ListItem', position: 3, name: localized(gathering.title), item: `/gatherings/${gathering.slug}` },
+  1110→  1110→  ],
+  1111→  1111→}} />
+  1112→  1112→```
+  1113→  1113→
+  1114→  1114→### Hreflang tags
+  1115→  1115→
+  1116→  1116→في `src/app/[locale]/layout.tsx` metadata:
+  1117→  1117→
+  1118→  1118→```tsx
+  1119→  1119→alternates: {
+  1120→  1120→  languages: {
+  1121→  1121→    'ar': '/',
+  1122→  1122→    'en': '/en',
+  1123→  1123→    'x-default': '/',
+  1124→  1124→  },
+  1125→  1125→},
+  1126→  1126→```
+  1127→  1127→
+  1128→  1128→---
+  1129→  1129→
+  1130→  1130→## ♿ Part 5: Accessibility
+  1131→  1131→
+  1132→  1132→### Skip to content link
+  1133→  1133→
+  1134→  1134→في `src/app/[locale]/layout.tsx`، أضف في أول الـ body:
+  1135→  1135→
+  1136→  1136→```tsx
+  1137→  1137→<a 
+  1138→  1138→  href="#main-content" 
+  1139→  1139→  className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:start-2 focus:z-50 focus:bg-clay focus:text-paper focus:px-4 focus:py-2 focus:rounded"
+  1140→  1140→>
+  1141→  1141→  تخطّي إلى المحتوى
+  1142→  1142→</a>
+  1143→  1143→
+  1144→  1144→<main id="main-content">{children}</main>
+  1145→  1145→```
+  1146→  1146→
+  1147→  1147→### ARIA labels audit
+  1148→  1148→
+  1149→  1149→تأكّد من أن كل الأيقونات-only buttons لها `aria-label`:
+  1150→  1150→
+  1151→  1151→```tsx
+  1152→  1152→// قبل
+  1153→  1153→<Button variant="ghost" size="icon" onClick={...}>
+  1154→  1154→  <Search className="size-4" />
+  1155→  1155→</Button>
+  1156→  1156→
+  1157→  1157→// بعد
+  1158→  1158→<Button variant="ghost" size="icon" aria-label="بحث" onClick={...}>
+  1159→  1159→  <Search className="size-4" />
+  1160→  1160→</Button>
+  1161→  1161→```
+  1162→  1162→
+  1163→  1163→طبّق هذا على:
+  1164→  1164→- NotificationBell
+  1165→  1165→- LocaleSwitcher
+  1166→  1166→- Close buttons (X)
+  1167→  1167→- Menu toggle
+  1168→  1168→- Any icon-only button
+  1169→  1169→
+  1170→  1170→### Keyboard navigation
+  1171→  1171→
+  1172→  1172→تأكّد من أن:
+  1173→  1173→- كل العناصر التفاعلية قابلة للوصول بـ Tab
+  1174→  1174→- `:focus-visible` styling واضح (ring-2 ring-clay)
+  1175→  1175→- Modal dialogs تحبس التركيز (focus trap)
+  1176→  1176→- Escape يغلق الـ modals
+  1177→  1177→
+  1178→  1178→أضف لـ `globals.css`:
+  1179→  1179→
+  1180→  1180→```css
+  1181→  1181→@layer base {
+  1182→  1182→  *:focus-visible {
+  1183→  1183→    @apply outline-none ring-2 ring-clay ring-offset-2 ring-offset-paper;
+  1184→  1184→  }
+  1185→  1185→  
+  1186→  1186→  @media (prefers-reduced-motion: reduce) {
+  1187→  1187→    *,
+  1188→  1188→    *::before,
+  1189→  1189→    *::after {
+  1190→  1190→      animation-duration: 0.01ms !important;
+  1191→  1191→      animation-iteration-count: 1 !important;
+  1192→  1192→      transition-duration: 0.01ms !important;
+  1193→  1193→      scroll-behavior: auto !important;
+  1194→  1194→    }
+  1195→  1195→  }
+  1196→  1196→}
+  1197→  1197→```
+  1198→  1198→
+  1199→  1199→---
+  1200→  1200→
+  1201→  1201→## ⚡ Part 6: Performance
+  1202→  1202→
+  1203→  1203→### Lazy loading للـ heavy components
+  1204→  1204→
+  1205→  1205→```tsx
+  1206→  1206→// بدل:
+  1207→  1207→import { LiveCompanion } from '@/components/lamma/live/LiveCompanion';
+  1208→  1208→import { ConciergeChat } from '@/components/lamma/ai/ConciergeChat';
+  1209→  1209→
+  1210→  1210→// استخدم:
+  1211→  1211→import dynamic from 'next/dynamic';
+  1212→  1212→
+  1213→  1213→const LiveCompanion = dynamic(() => import('@/components/lamma/live/LiveCompanion').then(m => m.LiveCompanion), {
+  1214→  1214→  loading: () => <div className="min-h-[60vh] flex items-center justify-center">
+  1215→  1215→    <div className="size-8 border-2 border-clay border-t-transparent rounded-full animate-spin" />
+  1216→  1216→  </div>,
+  1217→  1217→  ssr: false, // WebSocket يحتاج client only
+  1218→  1218→});
+  1219→  1219→
+  1220→  1220→const ConciergeChat = dynamic(() => import('@/components/lamma/ai/ConciergeChat').then(m => m.ConcurrentChat), {
+  1221→  1221→  ssr: false,
+  1222→  1222→});
+  1223→  1223→```
+  1224→  1224→
+  1225→  1225→### Image audit
+  1226→  1226→
+  1227→  1227→تأكّق من أن كل `<img>` تم استبدالها بـ `<Image>` من next/image (مع `width`, `height`, `priority` للـ above-the-fold).
+  1228→  1228→
+  1229→  1229→---
+  1230→  1230→
+  1231→  1231→## ✨ Part 7: Polish
+  1232→  1232→
+  1233→  1233→### Framer Motion page transitions
+  1234→  1234→
+  1235→  1235→`src/components/lamma/PageTransition.tsx`:
+  1236→  1236→
+  1237→  1237→```tsx
+  1238→  1238→'use client';
+  1239→  1239→
+  1240→  1240→import { motion } from 'framer-motion';
+  1241→  1241→import { usePathname } from 'next/navigation';
+  1242→  1242→
+  1243→  1243→export function PageTransition({ children }: { children: React.ReactNode }) {
+  1244→  1244→  const pathname = usePathname();
+  1245→  1245→  
+  1246→  1246→  return (
+  1247→  1247→    <motion.div
+  1248→  1248→      key={pathname}
+  1249→  1249→      initial={{ opacity: 0, y: 8 }}
+  1250→  1250→      animate={{ opacity: 1, y: 0 }}
+  1251→  1251→      exit={{ opacity: 0, y: -8 }}
+  1252→  1252→      transition={{ duration: 0.2, ease: 'easeOut' }}
+  1253→  1253→    >
+  1254→  1254→      {children}
+  1255→  1255→    </motion.div>
+  1256→  1256→  );
+  1257→  1257→}
+  1258→  1258→```
+  1259→  1259→
+  1260→  1260→لفّ به الـ children في `src/app/[locale]/layout.tsx`.
+  1261→  1261→
+  1262→  1262→### Error Boundary
+  1263→  1263→
+  1264→  1264→`src/app/[locale]/error.tsx`:
+  1265→  1265→
+  1266→  1266→```tsx
+  1267→  1267→'use client';
+  1268→  1268→
+  1269→  1269→import { useEffect, useState } from 'react';
+  1270→  1270→import { Button } from '@/components/ui/button';
+  1271→  1271→import { AlertTriangle, ChevronDown, ChevronUp } from 'lucide-react';
+  1272→  1272→
+  1273→  1273→export default function Error({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
+  1274→  1274→  const [showDetails, setShowDetails] = useState(false);
+  1275→  1275→  
+  1276→  1276→  useEffect(() => {
+  1277→  1277→    console.error('Page error:', error);
+  1278→  1278→  }, [error]);
+  1279→  1279→  
+  1280→  1280→  return (
+  1281→  1281→    <div className="min-h-[60vh] flex items-center justify-center px-4">
+  1282→  1282→      <div className="text-center max-w-md">
+  1283→  1283→        <div className="inline-flex items-center justify-center size-16 rounded-full bg-clay/10 mb-6">
+  1284→  1284→          <AlertTriangle className="size-8 text-clay" />
+  1285→  1285→        </div>
+  1286→  1286→        <h1 className="font-display text-3xl mb-3">حدث خطأ غير متوقع</h1>
+  1287→  1287→        <p className="text-stone mb-6">
+  1288→  1288→          نعتذر عن الإزعاج. حاول مرة أخرى، وإن استمرت المشكلة، تواصل معنا.
+  1289→  1289→        </p>
+  1290→  1290→        
+  1291→  1291→        <Button onClick={reset} className="bg-clay hover:bg-clay/90 text-paper mb-3">
+  1292→  1292→          إعادة المحاولة
+  1293→  1293→        </Button>
+  1294→  1294→        
+  1295→  1295→        <button
+  1296→  1296→          onClick={() => setShowDetails(!showDetails)}
+  1297→  1297→          className="block mx-auto text-sm text-stone hover:text-ink"
+  1298→  1298→        >
+  1299→  1299→          {showDetails ? 'إخفاء التفاصيل' : 'عرض التفاصيل'}
+  1300→  1300→          {showDetails ? <ChevronUp className="size-3 inline ms-1" /> : <ChevronDown className="size-3 inline ms-1" />}
+  1301→  1301→        </button>
+  1302→  1302→        
+  1303→  1303→        {showDetails && (
+  1304→  1304→          <pre className="mt-3 p-3 bg-sand rounded-lg text-xs text-start overflow-auto max-h-48">
+  1305→  1305→            {error.message}
+  1306→  1306→            {error.digest && `\n\nDigest: ${error.digest}`}
+  1307→  1307→            {error.stack && `\n\n${error.stack}`}
+  1308→  1308→          </pre>
+  1309→  1309→        )}
+  1310→  1310→      </div>
+  1311→  1311→    </div>
+  1312→  1312→  );
+  1313→  1313→}
+  1314→  1314→```
+  1315→  1315→
+  1316→  1316→### Loading states
+  1317→  1317→
+  1318→  1318→`src/app/[locale]/loading.tsx`:
+  1319→  1319→
+  1320→  1320→```tsx
+  1321→  1321→export default function Loading() {
+  1322→  1322→  return (
+  1323→  1323→    <div className="min-h-[60vh] flex items-center justify-center">
+  1324→  1324→      <div className="size-8 border-2 border-clay border-t-transparent rounded-full animate-spin" />
+  1325→  1325→    </div>
+  1326→  1326→  );
+  1327→  1327→}
+  1328→  1328→```
+  1329→  1329→
+  1330→  1330→### Loading skeletons للأقسام
+  1331→  1331→
+  1332→  1332→أنشئ `src/components/lamma/Skeletons.tsx` مع عدة skeleton components:
+  1333→  1333→
+  1334→  1334→```tsx
+  1335→  1335→export function GatheringCardSkeleton() {
+  1336→  1336→  return (
+  1337→  1337→    <div className="rounded-lg overflow-hidden bg-paper">
+  1338→  1338→      <div className="aspect-[16/9] bg-sand animate-pulse" />
+  1339→  1339→      <div className="p-4 space-y-2">
+  1340→  1340→        <div className="h-4 bg-sand rounded animate-pulse w-3/4" />
+  1341→  1341→        <div className="h-3 bg-sand rounded animate-pulse w-1/2" />
+  1342→  1342→        <div className="h-3 bg-sand rounded animate-pulse w-1/3" />
+  1343→  1343→      </div>
+  1344→  1344→    </div>
+  1345→  1345→  );
+  1346→  1346→}
+  1347→  1347→
+  1348→  1348→export function GatheringsGridSkeleton({ count = 6 }: { count?: number }) {
+  1349→  1349→  return (
+  1350→  1350→    <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+  1351→  1351→      {Array.from({ length: count }).map((_, i) => <GatheringCardSkeleton key={i} />)}
+  1352→  1352→    </div>
+  1353→  1353→  );
+  1354→  1354→}
+  1355→  1355→
+  1356→  1356→// ... skeletons أخرى حسب الحاجة
+  1357→  1357→```
+  1358→  1358→
+  1359→  1359→---
+  1360→  1360→
+  1361→  1361→## 🐳 Part 8: Production Readiness
+  1362→  1362→
+  1363→  1363→### `Dockerfile` (multi-stage, مستند لمرجع العمليات)
+  1364→  1364→
+  1365→  1365→استخدم الـ Dockerfile من `/home/z/my-project/reference/GLM-5.2-Assistant-Operations-Reference.md` قسم 5.3 — عدّله لـ:
+  1366→  1366→- يبني الـ Next.js standalone
+  1367→  1367→- يبني الـ live-companion mini-service
+  1368→  1368→- يشتغل الـ mini-service بـ supervisord أو process manager
+  1369→  1369→
+  1370→  1370→```dockerfile
+  1371→  1371→# ==========================================
+  1372→  1372→# Stage 1: deps
+  1373→  1373→# ==========================================
+  1374→  1374→FROM oven/bun:1-slim AS deps
+  1375→  1375→WORKDIR /app
+  1376→  1376→COPY package.json bun.lockb ./
+  1377→  1377→RUN bun install --frozen-lockfile
+  1378→  1378→
+  1379→  1379→# ==========================================
+  1380→  1380→# Stage 2: builder
+  1381→  1381→# ==========================================
+  1382→  1382→FROM oven/bun:1-slim AS builder
+  1383→  1383→WORKDIR /app
+  1384→  1384→COPY --from=deps /app/node_modules ./node_modules
+  1385→  1385→COPY . .
+  1386→  1386→ENV NEXT_TELEMETRY_DISABLED=1
+  1387→  1387→ENV NODE_ENV=production
+  1388→  1388→RUN bun ./node_modules/prisma/build/index.js generate
+  1389→  1389→RUN bun run build
+  1390→  1390→
+  1391→  1391→# Build live-companion
+  1392→  1392→RUN cd mini-services/live-companion && bun install
+  1393→  1393→
+  1394→  1394→# ==========================================
+  1395→  1395→# Stage 3: prod-deps
+  1396→  1396→# ==========================================
+  1397→  1397→FROM oven/bun:1-slim AS prod-deps
+  1398→  1398→WORKDIR /app
+  1399→  1399→COPY package.json bun.lockb ./
+  1400→  1400→RUN bun install --production --frozen-lockfile --ignore-scripts
+  1401→  1401→COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+  1402→  1402→COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
+  1403→  1403→
+  1404→  1404→# ==========================================
+  1405→  1405→# Stage 4: runner
+  1406→  1406→# ==========================================
+  1407→  1407→FROM oven/bun:1-slim AS runner
+  1408→  1408→WORKDIR /app
+  1409→  1409→ENV NODE_ENV=production
+  1410→  1410→ENV NEXT_TELEMETRY_DISABLED=1
+  1411→  1411→ENV PORT=3000
+  1412→  1412→ENV HOSTNAME=0.0.0.0
+  1413→  1413→ENV LIVE_COMPANION_PORT=3003
+  1414→  1414→
+  1415→  1415→RUN addgroup --system --gid 1001 nodejs \
+  1416→  1416→ && adduser --system --uid 1001 nextjs
+  1417→  1417→
+  1418→  1418→# Copy Next.js standalone
+  1419→  1419→COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+  1420→  1420→COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+  1421→  1421→COPY --from=builder --chown=nextjs:nodejs /app/public ./public
+  1422→  1422→
+  1423→  1423→# Copy prod deps + prisma
+  1424→  1424→COPY --from=prod-deps --chown=nextjs:nodejs /app/node_modules ./node_modules
+  1425→  1425→COPY --from=builder --chown=nextjs:nodejs /app/node_modules/prisma ./node_modules/prisma
+  1426→  1426→COPY --chown=nextjs:nodejs prisma ./prisma
+  1427→  1427→COPY --chown=nextjs:nodejs package.json ./package.json
+  1428→  1428→
+  1429→  1429→# Copy live-companion
+  1430→  1430→COPY --from=builder --chown=nextjs:nodejs /app/mini-services ./mini-services
+  1431→  1431→
+  1432→  1432→USER nextjs
+  1433→  1433→EXPOSE 3000 3003
+  1434→  1434→
+  1435→  1435→# Start both services (Next.js + Live Companion)
+  1436→  1436→CMD sh -c "node server.js & cd mini-services/live-companion && bun run start & wait"
+  1437→  1437→```
+  1438→  1438→
+  1439→  1439→### `railway.json`
+  1440→  1440→
+  1441→  1441→```json
+  1442→  1442→{
+  1443→  1443→  "$schema": "https://railway.app/railway.schema.json",
+  1444→  1444→  "build": {
+  1445→  1445→    "builder": "DOCKERFILE",
+  1446→  1446→    "dockerfilePath": "Dockerfile"
+  1447→  1447→  },
+  1448→  1448→  "deploy": {
+  1449→  1449→    "startCommand": "sh -c 'node server.js & cd mini-services/live-companion && bun run start & wait'",
+  1450→  1450→    "healthcheckPath": "/api/v1/health",
+  1451→  1451→    "healthcheckTimeout": 180,
+  1452→  1452→    "restartPolicyType": "ON_FAILURE",
+  1453→  1453→    "restartPolicyMaxRetries": 3
+  1454→  1454→  }
+  1455→  1455→}
+  1456→  1456→```
+  1457→  1457→
+  1458→  1458→### `.dockerignore`
+  1459→  1459→
+  1460→  1460→```
+  1461→  1461→node_modules
+  1462→  1462→.next
+  1463→  1463→.git
+  1464→  1464→.gitignore
+  1465→  1465→README.md
+  1466→  1466→.env*.local
+  1467→  1467→.DS_Store
+  1468→  1468→npm-debug.log*
+  1469→  1469→.vscode
+  1470→  1470→.idea
+  1471→  1471→coverage
+  1472→  1472→*.md
+  1473→  1473→!prisma/seed-standalone.ts
+  1474→  1474→download/
+  1475→  1475→tool-results/
+  1476→  1476→```
+  1477→  1477→
+  1478→  1478→### `.env.example`
+  1479→  1479→
+  1480→  1480→```bash
+  1481→  1481→# ==========================================
+  1482→  1482→# Database (PROD: Supabase PostgreSQL)
+  1483→  1483→# ==========================================
+  1484→  1484→DATABASE_URL="postgresql://postgres.lamma:[PASSWORD]@aws-0-eu-west-1.pooler.supabase.com:6543/postgres?pgbouncer=true"
+  1485→  1485→DIRECT_URL="postgresql://postgres.lamma:[PASSWORD]@aws-0-eu-west-1.pooler.supabase.com:5432/postgres"
+  1486→  1486→
+  1487→  1487→# ==========================================
+  1488→  1488→# Auth
+  1489→  1489→# ==========================================
+  1490→  1490→NEXTAUTH_SECRET="generate-with-openssl-rand-base64-32"
+  1491→  1491→NEXTAUTH_URL="https://lamma-production.up.railway.app"
+  1492→  1492→NODE_ENV="production"
+  1493→  1493→
+  1494→  1494→# ==========================================
+  1495→  1495→# AI (PROD: OpenAI)
+  1496→  1496→# ==========================================
+  1497→  1497→OPENAI_API_KEY="sk-..."
+  1498→  1498→# PROD-ONLY: replace z-ai-web-dev-sdk with openai client
+  1499→  1499→
+  1500→  1500→# ==========================================
+  1501→  1501→# Payments (PROD: Tap Payments)
+  1502→  1502→# ==========================================
+  1503→  1503→TAP_SECRET_KEY="sk_live_..."
+  1504→  1504→TAP_PUBLIC_KEY="pk_live_..."
+  1505→  1505→
+  1506→  1506→# ==========================================
+  1507→  1507→# Maps (PROD: Mapbox)
+  1508→  1508→# ==========================================
+  1509→  1509→NEXT_PUBLIC_MAPBOX_TOKEN="pk.eyJ1IjoibGFtbWEiLC..."
+  1510→  1510→
+  1511→  1511→# ==========================================
+  1512→  1512→# Email (PROD: Resend)
+  1513→  1513→# ==========================================
+  1514→  1514→RESEND_API_KEY="re_..."
+  1515→  1515→EMAIL_FROM="hello@lamma.kw"
+  1516→  1516→
+  1517→  1517→# ==========================================
+  1518→  1518→# Image CDN (PROD: Cloudinary)
+  1519→  1519→# ==========================================
+  1520→  1520→CLOUDINARY_CLOUD_NAME="..."
+  1521→  1521→CLOUDINARY_API_KEY="..."
+  1522→  1522→CLOUDINARY_API_SECRET="..."
+  1523→  1523→
+  1524→  1524→# ==========================================
+  1525→  1525→# Live Companion (auto)
+  1526→  1526→# ==========================================
+  1527→  1527→LIVE_COMPANION_PORT=3003
+  1528→  1528→
+  1529→  1529→# ==========================================
+  1530→  1530→# Analytics (PROD)
+  1531→  1531→# ==========================================
+  1532→  1532→NEXT_PUBLIC_SENTRY_DSN="https://..."
+  1533→  1533→SENTRY_DSN="https://..."
+  1534→  1534→NEXT_PUBLIC_GA_ID="G-..."
+  1535→  1535→```
+  1536→  1536→
+  1537→  1537→### `README.md`
+  1538→  1538→
+  1539→  1539→```markdown
+  1540→  1540→# 🌙 لَمَّة (Lamma)
+  1541→  1541→
+  1542→  1542→> منصة كويتية لتجمعات حميمية مُنتقاة — نحن لا نبني تطبيقات CRUD، نحن نبني منتجات ثقافية.
+  1543→  1543→
+  1544→  1544→## ✨ الميزات
+  1545→  1545→
+  1546→  1546→- **Discovery Layer** — تصفّح اللمات، أصحاب التجمعات، المواضيع التحريرية، الرسائل
+  1547→  1547→- **Application-based attendance** — تقديم طلب بدل شراء تذكرة
+  1548→  1548→- **AI Concierge** — مساعد ذكي يجيب عن أسئلة المستخدمين
+  1549→  1549→- **AI Content Enrichment** — ملخصات تلقائية، تحسين الأوصاف، اقتراح أسئلة
+  1550→  1550→- **Smart Matching** — مطابقة ذكية بـ TF-IDF + explainable AI
+  1551→  1551→- **Live Companion** — رفيق لحظي أثناء اللمة (chat + moments + presence)
+  1552→  1552→- **Host Dashboard** — مراجعة الطلبات، analytics، messaging inbox
+  1553→  1553→- **Prayer-aware scheduling** — احترام مواقيت الصلاة
+  1554→  1554→- **Bilingual (AR/EN)** — مع دعم RTL/LTR كامل
+  1555→  1555→- **PWA** — قابل للتثبيت كتطبيق
+  1556→  1556→
+  1557→  1557→## 🛠️ Tech Stack
+  1558→  1558→
+  1559→  1559→- **Frontend:** Next.js 16, React 19, TypeScript 5, Tailwind CSS 4, shadcn/ui
+  1560→  1560→- **Backend:** Next.js API Routes, Prisma 6, SQLite (dev) / PostgreSQL (prod)
+  1561→  1561→- **AI:** z-ai-web-dev-sdk (LLM), local TF-IDF matching engine
+  1562→  1562→- **Realtime:** socket.io mini-service (port 3003)
+  1563→  1563→- **Auth:** Zustand + localStorage (dev) / NextAuth.js (prod)
+  1564→  1564→
+  1565→  1565→## 🚀 Quick Start
+  1566→  1566→
+  1567→  1567→\`\`\`bash
+  1568→  1568→# Install
+  1569→  1569→bun install
+  1570→  1570→
+  1571→  1571→# Generate Prisma client
+  1572→  1572→bun run db:generate
+  1573→  1573→
+  1574→  1574→# Push schema to SQLite
+  1575→  1575→bun run db:push
+  1576→  1576→
+  1577→  1577→# Generate AI images
+  1578→  1578→bun run gen:images
+  1579→  1579→
+  1580→  1580→# Start dev server (port 3000)
+  1581→  1581→bun run dev
+  1582→  1582→
+  1583→  1583→# In another terminal, start Live Companion (port 3003)
+  1584→  1584→bun run live:install
+  1585→  1585→bun run live:start
+  1586→  1586→\`\`\`
+  1587→  1587→
+  1588→  1588→## 📂 Project Structure
+  1589→  1589→
+  1590→  1590→(نظرة شاملة على المجلدات الرئيسية)
+  1591→  1591→
+  1592→  1592→## 🌐 Locales
+  1593→  1593→
+  1594→  1594→- `ar` (default, RTL)
+  1595→  1595→- `en` (LTR)
+  1596→  1596→
+  1597→  1597→## 👥 Demo Users
+  1598→  1598→
+  1599→  1599→| Email | Password | Role |
+  1600→  1600→|-------|----------|------|
+  1601→  1601→| noura@lamma.demo | demo | Regular attendee |
+  1602→  1602→| ahmad@lamma.demo | demo | Curator |
+  1603→  1603→| sara@lamma.demo | demo | Newcomer |
+  1604→  1604→| khaled@lamma.demo | demo | Host |
+  1605→  1605→
+  1606→  1606→## 🚢 Production Deployment
+  1607→  1607→
+  1608→  1608→(تعليمات Railway + Supabase مستندة لمرجع العمليات)
+  1609→  1609→
+  1610→  1610→## 📝 License
+  1611→  1611→
+  1612→  1612→MIT
+  1613→  1613→```
+  1614→  1614→
+  1615→  1615→---
+  1616→  1616→
+  1617→  1617→## 📊 إضافة مفاتيح الترجمة
+  1618→  1618→
+  1619→  1619→أضف لـ `messages/{ar,en}.json`:
+  1620→  1620→
+  1621→  1621→```json
+  1622→  1622→{
+  1623→  1623→  "pwa": {
+  1624→  1624→    "installTitle": "ثبّت لَمَّة على جهازك" / "Install Lamma on your device",
+  1625→  1625→    "installSubtitle": "وصول أسرع، إشعارات، واستخدام دون اتصال" / "Faster access, notifications, and offline use",
+  1626→  1626→    "install": "تثبيت" / "Install",
+  1627→  1627→    "dismiss": "إغلاق" / "Dismiss"
+  1628→  1628→  },
+  1629→  1629→  "notifications": {
+  1630→  1630→    "title": "الإشعارات" / "Notifications",
+  1631→  1631→    "subtitle": "{count} إشعار غير مقروء" / "{count} unread",
+  1632→  1632→    "filters": {
+  1633→  1633→      "all": "الكل" / "All",
+  1634→  1634→      "unread": "غير مقروء" / "Unread"
+  1635→  1635→    },
+  1636→  1636→    "enableBrowserTitle": "فعّل إشعارات المتصفح" / "Enable browser notifications",
+  1637→  1637→    "enableBrowserSubtitle": "احصل على تنبيهات فورية عند الموافقة على طلباتك أو نشر لمات جديدة" / "Get instant alerts when your applications are approved or new gatherings are posted",
+  1638→  1638→    "enableBrowser": "تفعيل" / "Enable",
+  1639→  1639→    "enabled": "تم تفعيل الإشعارات" / "Notifications enabled",
+  1640→  1640→    "enabledBody": "ستصلك تنبيهات فورية الآن" / "You'll receive instant alerts now",
+  1641→  1641→    "markAllRead": "تعليم الكل كمقروء" / "Mark all as read",
+  1642→  1642→    "empty": "لا توجد إشعارات" / "No notifications"
+  1643→  1643→  },
+  1644→  1644→  "host": {
+  1645→  1645→    "messages": {
+  1646→  1646→      "title": "الرسائل" / "Messages",
+  1647→  1647→      "subtitle": "محادثاتك مع المتقدمين والحاضرين" / "Your conversations with applicants and attendees",
+  1648→  1648→      "conversations": "المحادثات" / "Conversations",
+  1649→  1649→      "empty": "لا توجد محادثات بعد" / "No conversations yet",
+  1650→  1650→      "selectConversation": "اختر محادثة للبدء" / "Select a conversation to start",
+  1651→  1651→      "messagePlaceholder": "اكتب رسالة..." / "Type a message..."
+  1652→  1652→    }
+  1653→  1653→  },
+  1654→  1654→  "nav": {
+  1655→  1655→    "notifications": "الإشعارات" / "Notifications"
+  1656→  1656→  }
+  1657→  1657→}
+  1658→  1658→```
+  1659→  1659→
+  1660→  1660→---
+  1661→  1661→
+  1662→  1662→## 📋 قائمة التحقق النهائية (Must Pass)
+  1663→  1663→
+  1664→  1664→### PWA
+  1665→  1665→- [ ] `manifest.json` موجود في `public/`
+  1666→  1666→- [ ] Service worker يسجّل في production
+  1667→  1667→- [ ] InstallPrompt يظهر عند `beforeinstallprompt`
+  1668→  1668→- [ ] Apple touch icon + meta tags في layout
+  1669→  1669→
+  1670→  1670→### Notifications
+  1671→  1671→- [ ] `/dashboard/notifications` يعرض قائمة الإشعارات
+  1672→  1672→- [ ] Browser notification permission flow يعمل
+  1673→  1673→- [ ] Filter tabs (all/unread) تعمل (native buttons)
+  1674→  1674→- [ ] NotificationBell في header للـ hosts مع unread count
+  1675→  1675→
+  1676→  1676→### Messaging
+  1677→  1677→- [ ] `/dashboard/host/messages` يعرض conversations list + thread view
+  1678→  1678→- [ ] 3 seed conversations لخالد
+  1679→  1679→- [ ] Send message يضيفها للـ thread
+  1680→  1680→- [ ] Mock reply يأتي بعد 2-4 ثوان
+  1681→  1681→- [ ] Unread count يتحدث
+  1682→  1682→
+  1683→  1683→### SEO
+  1684→  1684→- [ ] `/sitemap.xml` يرجع XML صالح بكل الصفحات
+  1685→  1685→- [ ] `/robots.txt` يرجع القواعد
+  1686→  1686→- [ ] JSON-LD على gathering detail (Event type)
+  1687→  1687→- [ ] JSON-LD على letter detail (Article type)
+  1688→  1688→- [ ] JSON-LD على host detail (Person type)
+  1689→  1689→- [ ] JSON-LD BreadcrumbList على كل detail pages
+  1690→  1690→- [ ] hreflang tags في layout
+  1691→  1691→- [ ] Canonical URLs
+  1692→  1692→
+  1693→  1693→### Accessibility
+  1694→  1694→- [ ] Skip to content link يظهر عند focus
+  1695→  1695→- [ ] كل icon-only buttons لها aria-label
+  1696→  1696→- [ ] :focus-visible styling واضح
+  1697→  1697→- [ ] prefers-reduced-motion media query يعمل
+  1698→  1698→
+  1699→  1699→### Performance
+  1700→  1700→- [ ] LiveCompanion lazy loaded (dynamic import)
+  1701→  1701→- [ ] ConciergeChat lazy loaded
+  1702→  1702→- [ ] كل الصور من next/image
+  1703→  1703→- [ ] Bundle size معقول (< 500KB initial)
+  1704→  1704→
+  1705→  1705→### Polish
+  1706→  1706→- [ ] Page transitions بـ Framer Motion
+  1707→  1707→- [ ] `error.tsx` مع show/hide details
+  1708→  1708→- [ ] `loading.tsx` مع spinner
+  1709→  1709→- [ ] Loading skeletons للأقسام الرئيسية
+  1710→  1710→- [ ] Hover states على كل العناصر التفاعلية
+  1711→  1711→
+  1712→  1712→### Production Readiness
+  1713→  1713→- [ ] `Dockerfile` موجود ومتعدد المراحل
+  1714→  1714→- [ ] `railway.json` موجود
+  1715→  1715→- [ ] `.dockerignore` موجود
+  1716→  1716→- [ ] `.env.example` شامل
+  1717→  1717→- [ ] `README.md` احترافي
+  1718→  1718→- [ ] `LICENSE` (MIT)
+  1719→  1719→- [ ] كل PROD-ONLY comments موثّقة
+  1720→  1720→
+  1721→  1721→### Quality
+  1722→  1722→- [ ] `bun run lint` — 0 errors, 0 warnings
+  1723→  1723→- [ ] dev server يعمل، `dev.log` نظيف
+  1724→  1724→- [ ] mini-service (port 3003) يعمل
+  1725→  1725→- [ ] كل المسارات الـ24+ تعمل بـ 200
+  1726→  1726→
+  1727→  1727→### Agent Browser E2E (Final Demo)
+  1728→  1728→- [ ] زائر: يفتح `/` → hero + gatherings
+  1729→  1729→- [ ] زائر: لا يرى InstallPrompt فوراً (يحتاج قبلinstallprompt)
+  1730→  1730→- [ ] تسجيل دخول كنورة → dashboard
+  1731→  1731→- [ ] نورة تفتح `/dashboard/notifications` → قائمة إشعارات
+  1732→  1732→- [ ] نورة تفعّل browser notifications → permission prompt
+  1733→  1733→- [ ] تسجيل دخول كخالد → host messages
+  1734→  1734→- [ ] خالد يفتح محادثة → يرسل رسالة → ينتظر reply → يصل
+  1735→  1735→- [ ] خالد يرى unread count في sidebar
+  1736→  1736→- [ ] فتح `/sitemap.xml` → XML صالح
+  1737→  1737→- [ ] فتح `/robots.txt` → القواعد
+  1738→  1738→- [ ] فتح أي gathering detail → تحقق من JSON-LD في page source
+  1739→  1739→- [ ] Tab navigation: كل العناصر قابلة للوصول
+  1740→  1740→- [ ] Skip link يعمل عند الضغط على Tab
+  1741→  1741→
+  1742→  1742→---
+  1743→  1743→
+  1744→  1744→## 📝 التقرير النهائي المطلوب
+  1745→  1745→
+  1746→  1746→1. قائمة كل الملفات الجديدة/المعدّلة (tree view)
+  1747→  1747→2. لقطة `bun run lint`
+  1748→  1748→3. لقطة `curl http://localhost:3000/api/v1/health`
+  1749→  1749→4. لقطة `curl http://localhost:3000/sitemap.xml | head -30`
+  1750→  1750→5. لقطة `curl http://localhost:3000/robots.txt`
+  1751→  1751→6. سيناريو اختبار كامل (step by step) مع لقطات شاشة:
+  1752→  1752→   - InstallPrompt UI
+  1753→  1753→   - NotificationCenter page
+  1754→  1754→   - Browser notification permission
+  1755→  1755→   - Host messaging inbox (conversation + reply)
+  1756→  1756→   - JSON-LD في page source
+  1757→  1757→   - Page transition animation
+  1758→  1758→   - Error page (عرض التفاصيل)
+  1759→  1759→   - Loading skeleton
+  1760→  1760→7. قائمة كل PROD-ONLY comments الموجودة في الكود
+  1761→  1761→8. أي قرارات معمارية / انحرافات عن المواصفات
+  1762→  1762→9. **التقرير النهائي للمشروع**: ما الذي تم إنجازه عبر كل المراحل الـ5؟
+  1763→  1763→
+  1764→  1764→---
+  1765→  1765→
+  1766→  1766→## ⚠️ قواعد صارمة
+  1767→  1767→
+  1768→  1768→1. **هذه المرحلة الأخيرة** — ركّز على polish + completeness
+  1769→  1769→2. **لا تضف ميزات جديدة غير موصوفة** — فقط ما هو مذكور في هذا البرومبت
+  1770→  1770→3. **Native buttons** بدل Radix Tabs/Checkbox في كل مكان
+  1771→  1771→4. **z-ai-web-dev-sdk للـ backend فقط**
+  1772→  1772→5. **كل النصوص في `messages/*.json`**
+  1773→  1773→6. **استخدم logical properties**
+  1774→  1774→7. **TypeScript strict** — لا `any`
+  1775→  1775→8. **PROD-ONLY comments** لكل placeholder للإنتاج
+  1776→  1776→9. **احترم الـ file structure**
+  1777→  1777→10. **اكتب worklog في `/home/z/my-project/worklog.md`** (append — مرحلة أخيرة)
+  1778→  1778→11. **اقرأ `dev.log` بعد كل تغيير كبير**
+  1779→  1779→12. **ابدأ Agent Browser قبل الإبلاغ بالانتهاء**
+  1780→  1780→13. **Dockerfile + railway.json + .env.example إلزامية**
+  1781→  1781→14. **README.md احترافي إلزامي**
+  1782→  1782→15. **PWA manifest + service worker إلزامية**
+  1783→  1783→16. **SEO sitemap + robots + JSON-LD إلزامية**
+  1784→  1784→
+  1785→  1785→ابدأ الآن — هذه المرحلة الأخيرة ستُكمل المشروع للتسليم النهائي.
+  1786→  1786→```
+  1787→  1787→
+  1788→  1788→---
+  1789→  1789→

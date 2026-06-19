@@ -218,3 +218,67 @@ Stage Summary:
   * Live Companion: 3 native tabs (chat/moments/attendees), WebSocket connected, 2 mock messages, attendee count
   * Host applications: AIReviewInsight visible, 9 match score bars
   * NotificationBell: wired in SiteHeader for hosts
+
+---
+Task ID: 5
+Agent: orchestrator (main)
+Task: Phase 5 (Final) — PWA + Notifications + Host Messaging + SEO + Polish + Production Readiness.
+
+Work Log:
+Part 1: PWA
+- Created public/manifest.json (name, short_name, icons, shortcuts, theme_color #B85C3E, background_color #F4EDE0, display standalone, dir rtl).
+- Created public/icons/icon.svg (SVG wordmark "لَمَّة" on clay background).
+- Created public/sw.js (service worker: network-first for navigation, cache-first for static assets, cache versioning).
+- Created InstallPrompt component (beforeinstallprompt event, dismissable with localStorage persistence).
+- Updated [locale]/layout.tsx: manifest link, appleWebApp meta, icons, alternates (canonical + hreflang), service worker registration script, InstallPrompt in layout.
+
+Part 2: Notifications System
+- Created src/lib/notifications-browser.ts (requestNotificationPermission, showBrowserNotification, useAutoNotifications hook).
+- Created NotificationCenter component (notification list with read/unread filter, browser permission banner, mark all read, formatRelative timestamps).
+- Created /dashboard/notifications page.
+- Added pwa + notifications translation namespaces (installTitle, enableBrowser, filters.all/unread, etc.).
+
+Part 3: Host Messaging Inbox
+- Created src/lib/conversations-store.ts (Zustand+persist: 3 seed conversations for Khaled, 7 seed messages, sendMessage with bot auto-reply after 2-4s, markRead).
+- Created MessagesInbox component (conversation list + thread view with message bubbles, unread badges, auto-scroll, Enter to send).
+- Replaced host messages placeholder page with real MessagesInbox.
+
+Part 4: SEO
+- Created src/app/sitemap.ts (dynamic: static pages + gatherings + hosts + topics + letters, both AR + EN locales, with lastModified/priority/changeFrequency).
+- Created src/app/robots.ts (allow /, disallow /dashboard, /api, /gatherings/apply, /admin, sitemap link).
+- Removed conflicting public/robots.txt.
+- Created src/components/seo/JsonLd.tsx (structured data component).
+- Added canonical URLs + hreflang in layout metadata (alternates.languages).
+
+Part 5: Polish
+- Created src/app/[locale]/error.tsx (error boundary with "Show details" + retry button).
+- Created src/app/[locale]/loading.tsx (loading skeleton with spinner).
+- Added main#main-content id for skip-link accessibility.
+- Reduced motion support already in globals.css (@media prefers-reduced-motion).
+
+Part 6: Production Readiness
+- Created .env.example (DATABASE_URL, NEXTAUTH_URL, NEXTAUTH_SECRET, LIVE_COMPANION_PORT, PROD-ONLY keys).
+- Created LICENSE (MIT).
+- Created README.md (overview, tech stack, features, setup, structure).
+
+Stage Summary:
+- Phase 5 COMPLETE. lint=0 errors. All 29 routes return 200.
+- Route audit:
+  * / → 200, /en → 200
+  * /gatherings → 200, /gatherings/[slug] → 200, /gatherings/[slug]/live → 200
+  * /hosts → 200, /hosts/[handle] → 200
+  * /topics → 200, /topics/[slug] → 200
+  * /letters → 200, /letters/[slug] → 200
+  * /about → 200, /faq → 200
+  * /dashboard → 200, /dashboard/applications → 200, /dashboard/matches → 200
+  * /dashboard/concierge → 200, /dashboard/notifications → 200
+  * /dashboard/host/* → all 200 (gatherings/applications/analytics/messages/new)
+  * /api/v1/health → 200, /api/v1/ai/health → 200
+  * /sitemap.xml → 200, /robots.txt → 200, /manifest.json → 200, /sw.js → 200, /icons/icon.svg → 200
+- Agent Browser verified:
+  * Host messages: 3 conversations with avatars + unread badges
+  * Notifications center: title "الإشعارات" with notification list
+  * All PWA assets serve correctly
+- Both servers running: dev (3000) + live-companion (3003)
+
+PROJECT COMPLETE — all 5 phases done.

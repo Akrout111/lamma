@@ -1,0 +1,1789 @@
+     1→
+     2→---
+     3→
+     4→# 📨 البرومبت #5 (الأخير) — PWA + Polish + Production Readiness
+     5→
+     6→انسخ البرومبت التالي وأرسله إلى GLM 5.2 Full Stack Agent:
+     7→
+     8→```markdown
+     9→# مهمة: المرحلة 5 (الأخيرة) — PWA + Polish + Production Readiness
+    10→
+    11→## 📖 السياق والمراجع الإلزامية
+    12→
+    13→كل المراحل السابقة (0, 1A, 1B, 2A, 2B, 3A, 3B, 3C, 4) مكتملة. اقرأ أولاً:
+    14→1. `/home/z/my-project/worklog.md` — سجل العمل الكامل
+    15→2. `/home/z/my-project/reference/Lamma-Project-Full-Documentation.md` — خاصة قسم 18 (Checklist ما قبل النشر)
+    16→3. `/home/z/my-project/reference/GLM-5.2-Assistant-Operations-Reference.md` — خاصة قسم 5 (دليل النشر) + قسم 11 (Checklists)
+    17→4. الكود الحالي في `src/`, `mini-services/`, `messages/`, `public/`
+    18→
+    19→**هذه المرحلة 5 من 5 (الأخيرة). لا تتجاوز نطاقها.**
+    20→
+    21→---
+    22→
+    23→## 🎯 هدف هذه المرحلة بالضبط
+    24→
+    25→إكمال المشروع وتجهيزه للتسليم النهائي كـ portfolio piece كامل:
+    26→
+    27→### Part 1: PWA Setup
+    28→1. ✅ `manifest.json` كامل (icons, theme, display, shortcuts)
+    29→2. ✅ Service worker بسيط (offline shell + cache strategy)
+    30→3. ✅ Install prompt UI (custom button + beforeinstallprompt event)
+    31→4. ✅ Apple touch icon + meta tags
+    32→
+    33→### Part 2: Notifications System
+    34→5. ✅ Browser Notification API permission flow
+    35→6. ✅ In-app notification center (`/dashboard/notifications`)
+    36→7. ✅ Notification preferences (toggle which types to receive)
+    37→8. ✅ Trigger notifications on key events (application approved/rejected, new gathering, etc.)
+    38→
+    39→### Part 3: Host Messaging Inbox
+    40→9. ✅ Persistent conversations (localStorage)
+    41→10. ✅ `/dashboard/host/messages` real page (not placeholder)
+    42→11. ✅ Conversation list + thread view
+    43→12. ✅ Mock conversation seeds (3-4 conversations per host)
+    44→
+    45→### Part 4: SEO Complete
+    46→13. ✅ `sitemap.ts` ديناميكي (كل الصفحات + gatherings + letters + hosts + topics)
+    47→14. ✅ `robots.ts` بقواعد ذكية
+    48→15. ✅ Structured data (JSON-LD) لكل صفحة (Event, Article, Person, BreadcrumbList)
+    49→16. ✅ OG images ديناميكية (`/api/og/[slug]`)
+    50→17. ✅ `manifest.json` link in layout
+    51→18. ✅ Canonical URLs
+    52→19. ✅ Multilingual hreflang tags
+    53→
+    54→### Part 5: Accessibility
+    55→20. ✅ Audit بـ axe-core rules (manual check)
+    56→21. ✅ ARIA labels على كل الأيقونات
+    57→22. ✅ Keyboard navigation (tab order, focus visible, skip links)
+    58→23. ✅ Screen reader testing (semantic HTML, sr-only labels)
+    59→24. ✅ Color contrast verification (WCAG AA)
+    60→25. ✅ Reduced motion support (`@media (prefers-reduced-motion)`)
+    61→
+    62→### Part 6: Performance
+    63→26. ✅ Lazy loading للـ heavy components (LiveCompanion, ConciergeChat, charts)
+    64→27. ✅ Code splitting per route (Next.js automatic)
+    65→28. ✅ Image optimization audit (next/image everywhere)
+    66→29. ✅ Bundle analysis (report size)
+    67→30. ✅ Font display: swap (already done — verify)
+    68→
+    69→### Part 7: Polish
+    70→31. ✅ Framer Motion page transitions
+    71→32. ✅ Loading skeletons لكل الأقسام
+    72→33. ✅ Error boundary (`error.tsx`) مع "Show details"
+    73→34. ✅ Hover/focus states على كل العناصر التفاعلية
+    74→35. ✅ Empty states مصمّمة بعناية
+    75→36. ✅ Toast notifications للـ success/error/warning
+    76→
+    77→### Part 8: Production Readiness
+    78→37. ✅ `Dockerfile` multi-stage (مستند لمرجع العمليات)
+    79→38. ✅ `railway.json` مع healthcheck
+    80→39. ✅ `.dockerignore`
+    81→40. ✅ `.env.example` شامل (كل المتغيرات المطلوبة)
+    82→41. ✅ `README.md` احترافي
+    83→42. ✅ `LICENSE` (MIT)
+    84→43. ✅ PROD-ONLY comments مراجعة (كل placeholder للإنتاج موثّق)
+    85→
+    86→---
+    87→
+    88→## 📱 Part 1: PWA Setup
+    89→
+    90→### `public/manifest.json`
+    91→
+    92→```json
+    93→{
+    94→  "name": "لَمَّة — Lamma",
+    95→  "short_name": "لَمَّة",
+    96→  "description": "تجمعات حميمية في الكويت",
+    97→  "lang": "ar",
+    98→  "dir": "rtl",
+    99→  "start_url": "/",
+   100→  "scope": "/",
+   101→  "display": "standalone",
+   102→  "orientation": "portrait-primary",
+   103→  "background_color": "#F4EDE0",
+   104→  "theme_color": "#B85C3E",
+   105→  "categories": ["lifestyle", "social", "events"],
+   106→  "icons": [
+   107→    {
+   108→      "src": "/icons/icon-192.png",
+   109→      "sizes": "192x192",
+   110→      "type": "image/png",
+   111→      "purpose": "any"
+   112→    },
+   113→    {
+   114→      "src": "/icons/icon-512.png",
+   115→      "sizes": "512x512",
+   116→      "type": "image/png",
+   117→      "purpose": "any"
+   118→    },
+   119→    {
+   120→      "src": "/icons/icon-maskable-512.png",
+   121→      "sizes": "512x512",
+   122→      "type": "image/png",
+   123→      "purpose": "maskable"
+   124→    }
+   125→  ],
+   126→  "shortcuts": [
+   127→    {
+   128→      "name": "التجمعات",
+   129→      "short_name": "تجمعات",
+   130→      "url": "/gatherings",
+   131→      "icons": [{ "src": "/icons/shortcut-gatherings.png", "sizes": "96x96" }]
+   132→    },
+   133→    {
+   134→      "name": "المساعد الذكي",
+   135→      "short_name": "مساعد",
+   136→      "url": "/dashboard/concierge",
+   137→      "icons": [{ "src": "/icons/shortcut-concierge.png", "sizes": "96x96" }]
+   138→    }
+   139→  ]
+   140→}
+   141→```
+   142→
+   143→**مهم:** لا يمكنك توليد أيقونات PNG حقيقية. بدلاً من ذلك، أنشئ SVG icons في `public/icons/` وتحويلها عبر sharp (موجود في dependencies) — أو استخدم placeholder SVGs وأضف تعليق `PROD-ONLY: replace with real PNG icons`.
+   144→
+   145→أنشئ `public/icons/icon.svg` كأيقونة أساسية (شعار لَمَّة: نقطة + كلمة لَمَّة) ثم استخدمها كـ fallback.
+   146→
+   147→### Service Worker
+   148→
+   149→أنشئ `public/sw.js` بسيط (cache-first للـ assets, network-first للـ pages):
+   150→
+   151→```javascript
+   152→const CACHE_NAME = 'lamma-v1';
+   153→const STATIC_ASSETS = [
+   154→  '/',
+   155→  '/manifest.json',
+   156→  '/icons/icon-192.png',
+   157→  '/icons/icon-512.png',
+   158→];
+   159→
+   160→self.addEventListener('install', (event) => {
+   161→  event.waitUntil(
+   162→    caches.open(CACHE_NAME).then((cache) => cache.addAll(STATIC_ASSETS))
+   163→  );
+   164→  self.skipWaiting();
+   165→});
+   166→
+   167→self.addEventListener('activate', (event) => {
+   168→  event.waitUntil(
+   169→    caches.keys().then((keys) =>
+   170→      Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))
+   171→    )
+   172→  );
+   173→  self.clients.claim();
+   174→});
+   175→
+   176→self.addEventListener('fetch', (event) => {
+   177→  const { request } = event;
+   178→  
+   179→  // Skip non-GET requests
+   180→  if (request.method !== 'GET') return;
+   181→  
+   182→  // Skip Next.js HMR + dev requests
+   183→  if (request.url.includes('_next/webpack-hmr')) return;
+   184→  
+   185→  // Network-first for navigation
+   186→  if (request.mode === 'navigate') {
+   187→    event.respondWith(
+   188→      fetch(request)
+   189→        .then((response) => {
+   190→          const clone = response.clone();
+   191→          caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
+   192→          return response;
+   193→        })
+   194→        .catch(() => caches.match(request).then(r => r || caches.match('/')))
+   195→    );
+   196→    return;
+   197→  }
+   198→  
+   199→  // Cache-first for static assets
+   200→  if (request.url.match(/\.(js|css|woff2|png|jpg|jpeg|svg|gif|webp)$/)) {
+   201→    event.respondWith(
+   202→      caches.match(request).then((cached) => cached || fetch(request).then((response) => {
+   203→        const clone = response.clone();
+   204→        caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
+   205→        return response;
+   206→      }))
+   207→    );
+   208→  }
+   209→});
+   210→```
+   211→
+   212→### تسجيل Service Worker
+   213→
+   214→في `src/app/[locale]/layout.tsx`:
+   215→
+   216→```tsx
+   217→useEffect(() => {
+   218→  if ('serviceWorker' in navigator && process.env.NODE_ENV === 'production') {
+   219→    navigator.serviceWorker.register('/sw.js').catch(console.error);
+   220→  }
+   221→}, []);
+   222→```
+   223→
+   224→### Install Prompt
+   225→
+   226→`src/components/lamma/pwa/InstallPrompt.tsx`:
+   227→
+   228→```tsx
+   229→'use client';
+   230→
+   231→import { useState, useEffect } from 'react';
+   232→import { Download, X } from 'lucide-react';
+   233→import { Button } from '@/components/ui/button';
+   234→import { useTranslations } from 'next-intal';
+   235→
+   236→interface BeforeInstallPromptEvent extends Event {
+   237→  prompt: () => Promise<void>;
+   238→  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
+   239→}
+   240→
+   241→export function InstallPrompt() {
+   242→  const t = useTranslations('pwa');
+   243→  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+   244→  const [dismissed, setDismissed] = useState(false);
+   245→  
+   246→  useEffect(() => {
+   247→    const stored = localStorage.getItem('lamma-install-dismissed');
+   248→    if (stored === 'true') {
+   249→      setDismissed(true);
+   250→      return;
+   251→    }
+   252→    
+   253→    const handler = (e: Event) => {
+   254→      e.preventDefault();
+   255→      setDeferredPrompt(e as BeforeInstallPromptEvent);
+   256→    };
+   257→    
+   258→    window.addEventListener('beforeinstallprompt', handler);
+   259→    return () => window.removeEventListener('beforeinstallprompt', handler);
+   260→  }, []);
+   261→  
+   262→  if (!deferredPrompt || dismissed) return null;
+   263→  
+   264→  const handleInstall = async () => {
+   265→    await deferredPrompt.prompt();
+   266→    const choice = await deferredPrompt.userChoice;
+   267→    if (choice.outcome === 'accepted') {
+   268→      setDeferredPrompt(null);
+   269→    }
+   270→  };
+   271→  
+   272→  const handleDismiss = () => {
+   273→    setDismissed(true);
+   274→    localStorage.setItem('lamma-install-dismissed', 'true');
+   275→  };
+   276→  
+   277→  return (
+   278→    <div className="fixed bottom-4 inset-x-4 sm:inset-x-auto sm:end-4 sm:max-w-sm z-50 animate-in slide-in-from-bottom">
+   279→      <div className="bg-paper border border-clay/20 rounded-lg shadow-lg p-4 flex items-center gap-3">
+   280→        <div className="size-10 rounded-full bg-clay/10 flex items-center justify-center flex-shrink-0">
+   281→          <Download className="size-5 text-clay" />
+   282→        </div>
+   283→        <div className="flex-1 min-w-0">
+   284→          <p className="text-sm font-medium">{t('installTitle')}</p>
+   285→          <p className="text-xs text-stone">{t('installSubtitle')}</p>
+   286→        </div>
+   287→        <Button size="sm" onClick={handleInstall} className="bg-clay hover:bg-clay/90 text-paper">
+   288→          {t('install')}
+   289→        </Button>
+   290→        <button onClick={handleDismiss} className="text-stone hover:text-ink" aria-label={t('dismiss')}>
+   291→          <X className="size-4" />
+   292→        </button>
+   293→      </div>
+   294→    </div>
+   295→  );
+   296→}
+   297→```
+   298→
+   299→أضفه في `src/app/[locale]/layout.tsx`.
+   300→
+   301→### Meta tags في layout
+   302→
+   303→```tsx
+   304→// في metadata:
+   305→{
+   306→  manifest: '/manifest.json',
+   307→  appleWebApp: {
+   308→    capable: true,
+   309→    statusBarStyle: 'default',
+   310→    title: 'لَمَّة',
+   311→  },
+   312→  formatDetection: {
+   313→    telephone: false,
+   314→  },
+   315→  icons: {
+   316→    icon: '/icons/icon.svg',
+   317→    apple: '/icons/icon-192.png',
+   318→  },
+   319→}
+   320→```
+   321→
+   322→---
+   323→
+   324→## 🔔 Part 2: Notifications System
+   325→
+   326→### Browser Notification Permission
+   327→
+   328→`src/lib/notifications-browser.ts`:
+   329→
+   330→```typescript
+   331→'use client';
+   332→
+   333→import { useNotificationsStore } from './notifications-store';
+   334→
+   335→export async function requestNotificationPermission(): Promise<boolean> {
+   336→  if (!('Notification' in window)) return false;
+   337→  
+   338→  if (Notification.permission === 'granted') return true;
+   339→  if (Notification.permission === 'denied') return false;
+   340→  
+   341→  const permission = await Notification.requestPermission();
+   342→  return permission === 'granted';
+   343→}
+   344→
+   345→export function showBrowserNotification(title: string, body: string, icon?: string) {
+   346→  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+   347→  
+   348→  try {
+   349→    new Notification(title, {
+   350→      body,
+   351→      icon: icon || '/icons/icon-192.png',
+   352→      badge: '/icons/icon-192.png',
+   353→      tag: 'lamma-notification',
+   354→    });
+   355→  } catch (e) {
+   356→    console.error('Notification error:', e);
+   357→  }
+   358→}
+   359→
+   360→// Hook للإشعارات التلقائية
+   361→export function useAutoNotifications() {
+   362→  const { notifications } = useNotificationsStore();
+   363→  
+   364→  useEffect(() => {
+   365→    if (notifications.length === 0) return;
+   366→    const latest = notifications[0];
+   367→    if (!latest.isRead && Notification.permission === 'granted') {
+   368→      showBrowserNotification(
+   369→        latest.title.ar,
+   370→        latest.body.ar,
+   371→      );
+   372→    }
+   373→  }, [notifications]);
+   374→}
+   375→```
+   376→
+   377→### Notification Center
+   378→
+   379→`src/app/[locale]/dashboard/notifications/page.tsx`:
+   380→
+   381→```tsx
+   382→import { NotificationCenter } from '@/components/lamma/notifications/NotificationCenter';
+   383→import { RequireAuth } from '@/components/lamma/auth/RequireAuth';
+   384→
+   385→export default function NotificationsPage() {
+   386→  return (
+   387→    <RequireAuth>
+   388→      <div className="container py-8 max-w-3xl">
+   389→        <NotificationCenter />
+   390→      </div>
+   391→    </RequireAuth>
+   392→  );
+   393→}
+   394→```
+   395→
+   396→`src/components/lamma/notifications/NotificationCenter.tsx`:
+   397→
+   398→```tsx
+   399→'use client';
+   400→
+   401→import { useNotificationsStore } from '@/lib/notifications-store';
+   402→import { useAuthStore } from '@/lib/auth-store';
+   403→import { useTranslations } from 'next-intl';
+   404→import { Card } from '@/components/ui/card';
+   405→import { Button } from '@/components/ui/button';
+   406→import { Bell, CheckCheck, BellOff, Settings } from 'lucide-react';
+   407→import { useState, useEffect } from 'react';
+   408→import { requestNotificationPermission, showBrowserNotification } from '@/lib/notifications-browser';
+   409→import { localized } from '@/lib/use-localized';
+   410→import { formatRelative } from '@/lib/format';
+   411→import { cn } from '@/lib/utils';
+   412→
+   413→export function NotificationCenter() {
+   414→  const t = useTranslations('notifications');
+   415→  const { notifications, unreadCount, markAllRead, markRead } = useNotificationsStore();
+   416→  const [permissionGranted, setPermissionGranted] = useState(false);
+   417→  const [filter, setFilter] = useState<'all' | 'unread'>('all');
+   418→  
+   419→  useEffect(() => {
+   420→    setPermissionGranted('Notification' in window && Notification.permission === 'granted');
+   421→  }, []);
+   422→  
+   423→  const handleEnableBrowser = async () => {
+   424→    const granted = await requestNotificationPermission();
+   425→    setPermissionGranted(granted);
+   426→    if (granted) {
+   427→      showBrowserNotification(t('enabled'), t('enabledBody'));
+   428→    }
+   429→  };
+   430→  
+   431→  const filtered = filter === 'unread' ? notifications.filter(n => !n.isRead) : notifications;
+   432→  
+   433→  return (
+   434→    <div>
+   435→      <div className="flex items-center justify-between mb-6">
+   436→        <div>
+   437→          <h1 className="font-display text-3xl mb-1">{t('title')}</h1>
+   438→          <p className="text-stone">{t('subtitle', { count: unreadCount })}</p>
+   439→        </div>
+   440→        {unreadCount > 0 && (
+   441→          <Button variant="outline" onClick={markAllRead}>
+   442→            <CheckCheck className="size-4 me-2" />
+   443→            {t('markAllRead')}
+   444→          </Button>
+   445→        )}
+   446→      </div>
+   447→      
+   448→      {/* Browser permission banner */}
+   449→      {!permissionGranted && (
+   450→        <Card className="p-4 mb-6 bg-sand/50 border-saffron/30">
+   451→          <div className="flex items-start gap-3">
+   452→            <Settings className="size-5 text-saffron flex-shrink-0 mt-0.5" />
+   453→            <div className="flex-1">
+   454→              <p className="font-medium mb-1">{t('enableBrowserTitle')}</p>
+   455→              <p className="text-sm text-stone mb-3">{t('enableBrowserSubtitle')}</p>
+   456→              <Button size="sm" onClick={handleEnableBrowser} className="bg-clay hover:bg-clay/90 text-paper">
+   457→                {t('enableBrowser')}
+   458→              </Button>
+   459→            </div>
+   460→          </div>
+   461→        </Card>
+   462→      )}
+   463→      
+   464→      {/* Filter */}
+   465→      <div className="inline-flex h-9 items-center rounded-lg bg-sand p-1 mb-4">
+   466→        {(['all', 'unread'] as const).map(f => (
+   467→          <button
+   468→            key={f}
+   469→            onClick={() => setFilter(f)}
+   470→            className={cn(
+   471→              'px-3 py-1 text-sm rounded-md transition-all',
+   472→              filter === f ? 'bg-paper text-ink shadow-sm' : 'text-stone'
+   473→            )}
+   474→          >
+   475→            {t(`filters.${f}`)}
+   476→            {f === 'unread' && unreadCount > 0 && (
+   477→              <span className="ms-1.5 text-xs bg-clay text-paper px-1.5 py-0.5 rounded-full tabular">
+   478→                {unreadCount}
+   479→              </span>
+   480→            )}
+   481→          </button>
+   482→        ))}
+   483→      </div>
+   484→      
+   485→      {/* Notifications list */}
+   486→      {filtered.length === 0 ? (
+   487→        <Card className="p-12 text-center">
+   488→          <BellOff className="size-12 text-stone/30 mx-auto mb-3" />
+   489→          <p className="text-stone">{t('empty')}</p>
+   490→        </Card>
+   491→      ) : (
+   492→        <div className="space-y-2">
+   493→          {filtered.map(notif => (
+   494→            <Card
+   495→              key={notif.id}
+   496→              className={cn(
+   497→                'p-4 cursor-pointer hover:shadow-md transition-shadow',
+   498→                !notif.isRead && 'border-s-4 border-s-4 border-clay'
+   499→              )}
+   500→              onClick={() => markRead(notif.id)}
+   501→            >
+   502→              <div className="flex items-start gap-3">
+   503→                <div className={cn(
+   504→                  'size-10 rounded-full flex items-center justify-center flex-shrink-0',
+   505→                  `bg-${notif.type === 'new_application' ? 'clay' : notif.type === 'system' ? 'stone' : 'teal'}/10`
+   506→                )}>
+   507→                  <Bell className={cn(
+   508→                    'size-5',
+   509→                    notif.type === 'new_application' ? 'text-clay' : notif.type === 'system' ? 'text-stone' : 'text-teal'
+   510→                  )} />
+   511→                </div>
+   512→                <div className="flex-1 min-w-0">
+   513→                  <div className="flex items-baseline justify-between gap-2">
+   514→                    <p className="font-medium">{localized(notif.title)}</p>
+   515→                    <span className="text-xs text-stone flex-shrink-0">{formatRelative(notif.createdAt, 'ar')}</span>
+   516→                  </div>
+   517→                  <p className="text-sm text-stone mt-1">{localized(notif.body)}</p>
+   518→                </div>
+   519→                {!notif.isRead && <span className="size-2 bg-clay rounded-full flex-shrink-0 mt-2" />}
+   520→              </div>
+   521→            </Card>
+   522→          ))}
+   523→        </div>
+   524→      )}
+   525→    </div>
+   526→  );
+   527→}
+   528→```
+   529→
+   530→أضف رابط "الإشعارات" في `AccountDropdown` و `HostSidebar`.
+   531→
+   532→---
+   533→
+   534→## 💬 Part 3: Host Messaging Inbox
+   535→
+   536→### Store for conversations
+   537→
+   538→`src/lib/conversations-store.ts`:
+   539→
+   540→```typescript
+   541→'use client';
+   542→
+   543→import { create } from 'zustand';
+   544→import { persist } from 'zustand/middleware';
+   545→
+   546→export interface ConversationMessage {
+   547→  id: string;
+   548→  conversationId: string;
+   549→  senderId: string;
+   550→  senderName: string;
+   551→  senderAvatar?: string;
+   552→  content: string;
+   553→  timestamp: string;
+   554→  isFromHost: boolean;
+   555→  read: boolean;
+   556→}
+   557→
+   558→export interface Conversation {
+   559→  id: string;
+   560→  hostId: string;
+   561→  attendeeId: string;
+   562→  attendeeName: string;
+   563→  attendeeAvatar?: string;
+   564→  gatheringSlug: string;
+   565→  gatheringTitle: string;
+   566→  lastMessageAt: string;
+   567→  unreadCount: number;
+   568→}
+   569→
+   570→interface State {
+   571→  conversations: Conversation[];
+   572→  messages: ConversationMessage[];
+   573→  getConversationsByHost: (hostId: string) => Conversation[];
+   574→  getMessages: (conversationId: string) => ConversationMessage[];
+   575→  sendMessage: (conversationId: string, content: string, isFromHost: boolean) => void;
+   576→  markRead: (conversationId: string) => void;
+   577→}
+   578→
+   579→// Seed: 3 conversations for Khaled
+   580→const seedConversations: Conversation[] = [
+   581→  {
+   582→    id: 'conv-1',
+   583→    hostId: 'user-khaled',
+   584→    attendeeId: 'user-noura',
+   585→    attendeeName: 'نورة العنزي',
+   586→    attendeeAvatar: '/images/hosts/noura_photographer.jpg',
+   587→    gatheringSlug: 'voices-rhythm-music',
+   588→    gatheringTitle: 'أصوات جديدة: موسيقى الإيقاع الكويتي',
+   589→    lastMessageAt: new Date(Date.now() - 3600000).toISOString(),
+   590→    unreadCount: 2,
+   591→  },
+   592→  {
+   593→    id: 'conv-2',
+   594→    hostId: 'user-khaled',
+   595→    attendeeId: 'user-ahmad',
+   596→    attendeeName: 'أحمد الكندري',
+   597→    attendeeAvatar: '/images/hosts/abdullah_kuwaiti_historian.jpg',
+   598→    gatheringSlug: 'voices-rhythm-music',
+   599→    gatheringTitle: 'أصوات جديدة: موسيقى الإيقاع الكويتي',
+   600→    lastMessageAt: new Date(Date.now() - 86400000).toISOString(),
+   601→    unreadCount: 0,
+   602→  },
+   603→  {
+   604→    id: 'conv-3',
+   605→    hostId: 'user-khaled',
+   606→    attendeeId: 'user-sara',
+   607→    attendeeName: 'سارة المصري',
+   608→    attendeeAvatar: '/images/hosts/amal_sudani_chef.jpg',
+   609→    gatheringSlug: 'voices-rhythm-music',
+   610→    gatheringTitle: 'أصوات جديدة: موسيقى الإيقاع الكويتي',
+   611→    lastMessageAt: new Date(Date.now() - 172800000).toISOString(),
+   612→    unreadCount: 0,
+   613→  },
+   614→];
+   615→
+   616→const seedMessages: ConversationMessage[] = [
+   617→  // Conv 1: Noura
+   618→  {
+   619→    id: 'm-1', conversationId: 'conv-1', senderId: 'user-noura', senderName: 'نورة',
+   620→    senderAvatar: '/images/hosts/noura_photographer.jpg',
+   621→    content: 'السلام عليكم، أود السؤال إن كان بإمكاني إحضار كاميرتي الخاصة؟',
+   622→    timestamp: new Date(Date.now() - 7200000).toISOString(),
+   623→    isFromHost: false, read: true,
+   624→  },
+   625→  {
+   626→    id: 'm-2', conversationId: 'conv-1', senderId: 'user-khaled', senderName: 'خالد',
+   627→    content: 'وعليكم السلام، بالتأكيد! الكاميرا الخاصة مرحّب بها. سنوفّر أيضاً بعض الأدوات.',
+   628→    timestamp: new Date(Date.now() - 7000000).toISOString(),
+   629→    isFromHost: true, read: true,
+   630→  },
+   631→  {
+   632→    id: 'm-3', conversationId: 'conv-1', senderId: 'user-noura', senderName: 'نورة',
+   633→    content: 'رائع، شكراً جزيلاً! هل هناك لون معيّن تفضّل أن نرتديه؟',
+   634→    timestamp: new Date(Date.now() - 3600000).toISOString(),
+   635→    isFromHost: false, read: false,
+   636→  },
+   637→  {
+   638→    id: 'm-4', conversationId: 'conv-1', senderId: 'user-noura', senderName: 'نورة',
+   639→    content: 'وأيضاً، هل المواقع قريبة من موقف سيارات؟',
+   640→    timestamp: new Date(Date.now() - 3500000).toISOString(),
+   641→    isFromHost: false, read: false,
+   642→  },
+   643→  // Conv 2: Ahmad
+   644→  {
+   645→    id: 'm-5', conversationId: 'conv-2', senderId: 'user-ahmad', senderName: 'أحمد',
+   646→    content: 'هل اللمة مناسبة للمبتدئين؟',
+   647→    timestamp: new Date(Date.now() - 90000000).toISOString(),
+   648→    isFromHost: false, read: true,
+   649→  },
+   650→  {
+   651→    id: 'm-6', conversationId: 'conv-2', senderId: 'user-khaled', senderName: 'خالد',
+   652→    content: 'نعم، اللمة مصمّمة لكل المستويات. سأشرح الأساسيات قبل البدء.',
+   653→    timestamp: new Date(Date.now() - 86400000).toISOString(),
+   654→    isFromHost: true, read: true,
+   655→  },
+   656→  // Conv 3: Sara
+   657→  {
+   658→    id: 'm-7', conversationId: 'conv-3', senderId: 'user-sara', senderName: 'سارة',
+   659→    content: 'هل المكان سهل الوصول من حولي؟',
+   660→    timestamp: new Date(Date.now() - 172800000).toISOString(),
+   661→    isFromHost: false, read: true,
+   662→  },
+   663→];
+   664→
+   665→export const useConversationsStore = create<State>()(
+   666→  persist(
+   667→    (set, get) => ({
+   668→      conversations: seedConversations,
+   669→      messages: seedMessages,
+   670→      
+   671→      getConversationsByHost: (hostId) => 
+   672→        get().conversations.filter(c => c.hostId === hostId)
+   673→          .sort((a, b) => new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime()),
+   674→      
+   675→      getMessages: (conversationId) => 
+   676→        get().messages.filter(m => m.conversationId === conversationId)
+   677→          .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()),
+   678→      
+   679→      sendMessage: (conversationId, content, isFromHost) => {
+   680→        const now = new Date().toISOString();
+   681→        const conv = get().conversations.find(c => c.id === conversationId);
+   682→        if (!conv) return;
+   683→        
+   684→        const newMsg: ConversationMessage = {
+   685→          id: `m-${Date.now()}`,
+   686→          conversationId,
+   687→          senderId: isFromHost ? conv.hostId : conv.attendeeId,
+   688→          senderName: isFromHost ? 'خالد' : conv.attendeeName,
+   689→          senderAvatar: isFromHost ? undefined : conv.attendeeAvatar,
+   690→          content,
+   691→          timestamp: now,
+   692→          isFromHost,
+   693→          read: isFromHost, // host's own messages are read
+   694→        };
+   695→        
+   696→        set(state => ({
+   697→          messages: [...state.messages, newMsg],
+   698→          conversations: state.conversations.map(c =>
+   699→            c.id === conversationId
+   700→              ? { ...c, lastMessageAt: now, unreadCount: isFromHost ? c.unreadCount : c.unreadCount + 1 }
+   701→              : c
+   702→          ),
+   703→        }));
+   704→        
+   705→        // Simulate reply after 2-4 seconds (mock bot)
+   706→        if (isFromHost) {
+   707→          setTimeout(() => {
+   708→            const replies = [
+   709→              'شكراً على الرد',
+   710→              'تمام، فهمت',
+   711→              'ممتاز، نراكم soon',
+   712→              'أقدر توفّر لي تفاصيل أكثر؟',
+   713→              'وصلت المتطلبات، شكراً',
+   714→            ];
+   715→            const reply = replies[Math.floor(Math.random() * replies.length)];
+   716→            const replyMsg: ConversationMessage = {
+   717→              id: `m-${Date.now()}-reply`,
+   718→              conversationId,
+   719→              senderId: conv.attendeeId,
+   720→              senderName: conv.attendeeName,
+   721→              senderAvatar: conv.attendeeAvatar,
+   722→              content: reply,
+   723→              timestamp: new Date().toISOString(),
+   724→              isFromHost: false,
+   725→              read: false,
+   726→            };
+   727→            set(state => ({
+   728→              messages: [...state.messages, replyMsg],
+   729→              conversations: state.conversations.map(c =>
+   730→                c.id === conversationId
+   731→                  ? { ...c, lastMessageAt: new Date().toISOString(), unreadCount: c.unreadCount + 1 }
+   732→                  : c
+   733→              ),
+   734→            }));
+   735→          }, 2000 + Math.random() * 2000);
+   736→        }
+   737→      },
+   738→      
+   739→      markRead: (conversationId) => {
+   740→        set(state => ({
+   741→          messages: state.messages.map(m =>
+   742→            m.conversationId === conversationId ? { ...m, read: true } : m
+   743→          ),
+   744→          conversations: state.conversations.map(c =>
+   745→            c.id === conversationId ? { ...c, unreadCount: 0 } : c
+   746→          ),
+   747→        }));
+   748→      },
+   749→    }),
+   750→    { name: 'lamma-conversations' }
+   751→  )
+   752→);
+   753→```
+   754→
+   755→### Messages page (replaces placeholder)
+   756→
+   757→`src/app/[locale]/dashboard/host/messages/page.tsx` — استبدل الـ placeholder بـ:
+   758→
+   759→```tsx
+   760→import { MessagesInbox } from '@/components/lamma/host/MessagesInbox';
+   761→
+   762→export default function MessagesPage() {
+   763→  return <MessagesInbox />;
+   764→}
+   765→```
+   766→
+   767→`src/components/lamma/host/MessagesInbox.tsx`:
+   768→
+   769→```tsx
+   770→'use client';
+   771→
+   772→import { useConversationsStore } from '@/lib/conversations-store';
+   773→import { useAuthStore } from '@/lib/auth-store';
+   774→import { useTranslations } from 'next-intl';
+   775→import { Card } from '@/components/ui/card';
+   776→import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+   777→import { Input } from '@/components/ui/input';
+   778→import { Button } from '@/components/ui/button';
+   779→import { Send, ArrowRight, MessageSquare } from 'lucide-react';
+   780→import { useState, useRef, useEffect } from 'react';
+   781→import { localized } from '@/lib/use-localized';
+   782→import { formatRelative } from '@/lib/format';
+   783→import { cn } from '@/lib/utils';
+   784→
+   785→export function MessagesInbox() {
+   786→  const t = useTranslations('host.messages');
+   787→  const { user } = useAuthStore();
+   788→  const { getConversationsByHost, getMessages, sendMessage, markRead } = useConversationsStore();
+   789→  
+   790→  const [selectedId, setSelectedId] = useState<string | null>(null);
+   791→  const [input, setInput] = useState('');
+   792→  const messagesEndRef = useRef<HTMLDivElement>(null);
+   793→  
+   794→  const conversations = user ? getConversationsByHost(user.id) : [];
+   795→  const messages = selectedId ? getMessages(selectedId) : [];
+   796→  
+   797→  useEffect(() => {
+   798→    if (selectedId) markRead(selectedId);
+   799→  }, [selectedId, messages.length]);
+   800→  
+   801→  useEffect(() => {
+   802→    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+   803→  }, [messages]);
+   804→  
+   805→  const handleSend = () => {
+   806→    if (!input.trim() || !selectedId) return;
+   807→    sendMessage(selectedId, input.trim(), true);
+   808→    setInput('');
+   809→  };
+   810→  
+   811→  return (
+   812→    <div>
+   813→      <h1 className="font-display text-3xl mb-1">{t('title')}</h1>
+   814→      <p className="text-stone mb-6">{t('subtitle')}</p>
+   815→      
+   816→      <div className="grid lg:grid-cols-[320px_1fr] gap-4 h-[70vh]">
+   817→        {/* Conversations list */}
+   818→        <Card className="overflow-hidden flex flex-col">
+   819→          <div className="p-3 border-b border-stone/10">
+   820→            <p className="text-sm font-medium">{t('conversations')}</p>
+   821→          </div>
+   822→          <div className="flex-1 overflow-y-auto">
+   823→            {conversations.length === 0 ? (
+   824→              <div className="p-8 text-center text-stone">
+   825→                <MessageSquare className="size-8 mx-auto mb-2 opacity-30" />
+   826→                <p className="text-sm">{t('empty')}</p>
+   827→              </div>
+   828→            ) : (
+   829→              conversations.map(conv => (
+   830→                <button
+   831→                  key={conv.id}
+   832→                  onClick={() => setSelectedId(conv.id)}
+   833→                  className={cn(
+   834→                    'w-full p-3 flex items-start gap-3 border-b border-stone/5 hover:bg-sand transition-colors text-start',
+   835→                    selectedId === conv.id && 'bg-sand/50'
+   836→                  )}
+   837→                >
+   838→                  <Avatar className="size-10 flex-shrink-0">
+   839→                    {conv.attendeeAvatar && <AvatarImage src={conv.attendeeAvatar} alt="" />}
+   840→                    <AvatarFallback>{conv.attendeeName.charAt(0)}</AvatarFallback>
+   841→                  </Avatar>
+   842→                  <div className="flex-1 min-w-0">
+   843→                    <div className="flex items-baseline justify-between gap-2">
+   844→                      <p className="text-sm font-medium truncate">{conv.attendeeName}</p>
+   845→                      <span className="text-xs text-stone flex-shrink-0">{formatRelative(conv.lastMessageAt, 'ar')}</span>
+   846→                    </div>
+   847→                    <p className="text-xs text-stone truncate mt-0.5">{conv.gatheringTitle}</p>
+   848→                    {conv.unreadCount > 0 && (
+   849→                      <span className="inline-block mt-1 text-xs bg-clay text-paper px-1.5 py-0.5 rounded-full tabular">
+   850→                        {conv.unreadCount}
+   851→                      </span>
+   852→                    )}
+   853→                  </div>
+   854→                </button>
+   855→              ))
+   856→            )}
+   857→          </div>
+   858→        </Card>
+   859→        
+   860→        {/* Thread view */}
+   861→        <Card className="flex flex-col">
+   862→          {!selectedId ? (
+   863→            <div className="flex-1 flex items-center justify-center text-stone">
+   864→              <div className="text-center">
+   865→                <MessageSquare className="size-12 mx-auto mb-3 opacity-30" />
+   866→                <p>{t('selectConversation')}</p>
+   867→              </div>
+   868→            </div>
+   869→          ) : (
+   870→            <>
+   871→              {/* Thread header */}
+   872→              <div className="p-3 border-b border-stone/10 flex items-center gap-3">
+   873→                <Avatar className="size-10">
+   874→                  {conversations.find(c => c.id === selectedId)?.attendeeAvatar && 
+   875→                    <AvatarImage src={conversations.find(c => c.id === selectedId)!.attendeeAvatar!} alt="" />}
+   876→                  <AvatarFallback>{conversations.find(c => c.id === selectedId)?.attendeeName.charAt(0)}</AvatarFallback>
+   877→                </Avatar>
+   878→                <div className="flex-1">
+   879→                  <p className="font-medium">{conversations.find(c => c.id === selectedId)?.attendeeName}</p>
+   880→                  <p className="text-xs text-stone">{conversations.find(c => c.id === selectedId)?.gatheringTitle}</p>
+   881→                </div>
+   882→              </div>
+   883→              
+   884→              {/* Messages */}
+   885→              <div className="flex-1 overflow-y-auto p-4 space-y-3">
+   886→                {messages.map(msg => (
+   887→                  <div key={msg.id} className={cn('flex', msg.isFromHost ? 'justify-end' : 'justify-start')}>
+   888→                    <div className={cn(
+   889→                      'max-w-[75%] p-3 rounded-2xl',
+   890→                      msg.isFromHost
+   891→                        ? 'bg-clay text-paper rounded-tr-sm'
+   892→                        : 'bg-sand rounded-tl-sm'
+   893→                    )}>
+   894→                      <p className="text-sm">{msg.content}</p>
+   895→                      <p className={cn('text-xs mt-1 tabular', msg.isFromHost ? 'text-paper/70' : 'text-stone')}>
+   896→                        {new Date(msg.timestamp).toLocaleTimeString('ar', { hour: '2-digit', minute: '2-digit' })}
+   897→                      </p>
+   898→                    </div>
+   899→                  </div>
+   900→                ))}
+   901→                <div ref={messagesEndRef} />
+   902→              </div>
+   903→              
+   904→              {/* Input */}
+   905→              <div className="border-t border-stone/10 p-3 flex gap-2">
+   906→                <Input
+   907→                  value={input}
+   908→                  onChange={(e) => setInput(e.target.value)}
+   909→                  placeholder={t('messagePlaceholder')}
+   910→                  onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+   911→                />
+   912→                <Button onClick={handleSend} disabled={!input.trim()} className="bg-clay hover:bg-clay/90 text-paper">
+   913→                  <Send className="size-4" />
+   914→                </Button>
+   915→              </div>
+   916→            </>
+   917→          )}
+   918→        </Card>
+   919→      </div>
+   920→    </div>
+   921→  );
+   922→}
+   923→```
+   924→
+   925→أضف الرابط في `HostSidebar` badge count للرسائل غير المقروءة.
+   926→
+   927→---
+   928→
+   929→## 🔍 Part 4: SEO Complete
+   930→
+   931→### `src/app/sitemap.ts`
+   932→
+   933→```typescript
+   934→import { MetadataRoute } from 'next';
+   935→import { gatherings } from '@/data/gatherings';
+   936→import { hosts } from '@/data/hosts';
+   937→import { topics } from '@/data/topics';
+   938→import { letters } from '@/data/letters';
+   939→
+   940→export default function sitemap(): MetadataRoute.Sitemap {
+   941→  const baseUrl = 'https://lamma.kw'; // PROD-ONLY: استخدم process.env.NEXTAUTH_URL
+   942→  const now = new Date();
+   943→  
+   944→  const staticPages: MetadataRoute.Sitemap = [
+   945→    { url: `${baseUrl}/`, lastModified: now, changeFrequency: 'daily', priority: 1 },
+   946→    { url: `${baseUrl}/en`, lastModified: now, changeFrequency: 'daily', priority: 1 },
+   947→    { url: `${baseUrl}/gatherings`, lastModified: now, changeFrequency: 'daily', priority: 0.9 },
+   948→    { url: `${baseUrl}/en/gatherings`, lastModified: now, changeFrequency: 'daily', priority: 0.9 },
+   949→    { url: `${baseUrl}/hosts`, lastModified: now, changeFrequency: 'weekly', priority: 0.8 },
+   950→    { url: `${baseUrl}/en/hosts`, lastModified: now, changeFrequency: 'weekly', priority: 0.8 },
+   951→    { url: `${baseUrl}/topics`, lastModified: now, changeFrequency: 'monthly', priority: 0.7 },
+   952→    { url: `${baseUrl}/en/topics`, lastModified: now, changeFrequency: 'monthly', priority: 0.7 },
+   953→    { url: `${baseUrl}/letters`, lastModified: now, changeFrequency: 'weekly', priority: 0.8 },
+   954→    { url: `${baseUrl}/en/letters`, lastModified: now, changeFrequency: 'weekly', priority: 0.8 },
+   955→    { url: `${baseUrl}/about`, lastModified: now, changeFrequency: 'yearly', priority: 0.5 },
+   956→    { url: `${baseUrl}/en/about`, lastModified: now, changeFrequency: 'yearly', priority: 0.5 },
+   957→    { url: `${baseUrl}/faq`, lastModified: now, changeFrequency: 'monthly', priority: 0.5 },
+   958→    { url: `${baseUrl}/en/faq`, lastModified: now, changeFrequency: 'monthly', priority: 0.5 },
+   959→  ];
+   960→  
+   961→  const gatheringPages: MetadataRoute.Sitemap = gatherings.flatMap(g => [
+   962→    { url: `${baseUrl}/gatherings/${g.slug}`, lastModified: new Date(g.updatedAt || now), changeFrequency: 'weekly' as const, priority: 0.8 },
+   963→    { url: `${baseUrl}/en/gatherings/${g.slug}`, lastModified: new Date(g.updatedAt || now), changeFrequency: 'weekly' as const, priority: 0.8 },
+   964→  ]);
+   965→  
+   966→  const hostPages: MetadataRoute.Sitemap = hosts.flatMap(h => [
+   967→    { url: `${baseUrl}/hosts/${h.handle}`, lastModified: now, changeFrequency: 'monthly' as const, priority: 0.7 },
+   968→    { url: `${baseUrl}/en/hosts/${h.handle}`, lastModified: now, changeFrequency: 'monthly' as const, priority: 0.7 },
+   969→  ]);
+   970→  
+   971→  const topicPages: MetadataRoute.Sitemap = topics.flatMap(t => [
+   972→    { url: `${baseUrl}/topics/${t.slug}`, lastModified: now, changeFrequency: 'monthly' as const, priority: 0.6 },
+   973→    { url: `${baseUrl}/en/topics/${t.slug}`, lastModified: now, changeFrequency: 'monthly' as const, priority: 0.6 },
+   974→  ]);
+   975→  
+   976→  const letterPages: MetadataRoute.Sitemap = letters.flatMap(l => [
+   977→    { url: `${baseUrl}/letters/${l.slug}`, lastModified: new Date(l.publishedAt), changeFrequency: 'yearly' as const, priority: 0.7 },
+   978→    { url: `${baseUrl}/en/letters/${l.slug}`, lastModified: new Date(l.publishedAt), changeFrequency: 'yearly' as const, priority: 0.7 },
+   979→  ]);
+   980→  
+   981→  return [...staticPages, ...gatheringPages, ...hostPages, ...topicPages, ...letterPages];
+   982→}
+   983→```
+   984→
+   985→### `src/app/robots.ts`
+   986→
+   987→```typescript
+   988→import { MetadataRoute } from 'next';
+   989→
+   990→export default function robots(): MetadataRoute.Robots {
+   991→  const baseUrl = 'https://lamma.kw'; // PROD-ONLY
+   992→  
+   993→  return {
+   994→    rules: [
+   995→      {
+   996→        userAgent: '*',
+   997→        allow: '/',
+   998→        disallow: [
+   999→          '/dashboard',
+  1000→          '/api',
+  1001→          '/gatherings/apply',
+  1002→          '/admin',
+  1003→        ],
+  1004→      },
+  1005→    ],
+  1006→    sitemap: `${baseUrl}/sitemap.xml`,
+  1007→    host: baseUrl,
+  1008→  };
+  1009→}
+  1010→```
+  1011→
+  1012→### Structured Data (JSON-LD)
+  1013→
+  1014→أنشئ `src/components/seo/JsonLd.tsx`:
+  1015→
+  1016→```tsx
+  1017→interface Props {
+  1018→  data: Record<string, unknown>;
+  1019→}
+  1020→
+  1021→export function JsonLd({ data }: Props) {
+  1022→  return (
+  1023→    <script
+  1024→      type="application/ld+json"
+  1025→      dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }}
+  1026→    />
+  1027→  );
+  1028→}
+  1029→```
+  1030→
+  1031→في كل صفحة detail، أضف JSON-LD مناسب:
+  1032→
+  1033→**Gathering detail:**
+  1034→```tsx
+  1035→<JsonLd data={{
+  1036→  '@context': 'https://schema.org',
+  1037→  '@type': 'Event',
+  1038→  name: localized(gathering.title),
+  1039→  description: localized(gathering.description).slice(0, 200),
+  1040→  startDate: gathering.startDate,
+  1041→  endDate: gathering.endDate,
+  1042→  eventStatus: 'https://schema.org/EventScheduled',
+  1043→  eventAttendanceMode: 'https://schema.org/OfflineEventAttendanceMode',
+  1044→  location: {
+  1045→    '@type': 'Place',
+  1046→    name: localized(gathering.venueName),
+  1047→    address: localized(gathering.venueAddress),
+  1048→  },
+  1049→  image: gathering.coverImageUrl,
+  1050→  offers: {
+  1051→    '@type': 'Offer',
+  1052→    price: gathering.priceKwd,
+  1053→    priceCurrency: 'KWD',
+  1054→    availability: gathering.status === 'APPLICATIONS_OPEN' 
+  1055→      ? 'https://schema.org/InStock' 
+  1056→      : 'https://schema.org/OutOfStock',
+  1057→  },
+  1058→  organizer: {
+  1059→    '@type': 'Person',
+  1060→    name: localized(host.displayName),
+  1061→  },
+  1062→}} />
+  1063→```
+  1064→
+  1065→**Letter detail:**
+  1066→```tsx
+  1067→<JsonLd data={{
+  1068→  '@context': 'https://schema.org',
+  1069→  '@type': 'Article',
+  1070→  headline: localized(letter.title),
+  1071→  description: localized(letter.excerpt),
+  1072→  image: letter.coverImageUrl,
+  1073→  datePublished: letter.publishedAt,
+  1074→  author: {
+  1075→    '@type': 'Person',
+  1076→    name: localized(author.displayName),
+  1077→  },
+  1078→  publisher: {
+  1079→    '@type': 'Organization',
+  1080→    name: 'لَمَّة',
+  1081→  },
+  1082→}} />
+  1083→```
+  1084→
+  1085→**Host detail:**
+  1086→```tsx
+  1087→<JsonLd data={{
+  1088→  '@context': 'https://schema.org',
+  1089→  '@type': 'Person',
+  1090→  name: localized(host.displayName),
+  1091→  description: localized(host.bio),
+  1092→  image: host.avatarUrl,
+  1093→  jobTitle: 'Gathering Host',
+  1094→  sameAs: [
+  1095→    host.instagram ? `https://instagram.com/${host.instagram}` : null,
+  1096→    host.twitter ? `https://twitter.com/${host.twitter}` : null,
+  1097→  ].filter(Boolean),
+  1098→}} />
+  1099→```
+  1100→
+  1101→**Breadcrumb on all detail pages:**
+  1102→```tsx
+  1103→<JsonLd data={{
+  1104→  '@context': 'https://schema.org',
+  1105→  '@type': 'BreadcrumbList',
+  1106→  itemListElement: [
+  1107→    { '@type': 'ListItem', position: 1, name: 'الرئيسية', item: '/' },
+  1108→    { '@type': 'ListItem', position: 2, name: 'تجمعات', item: '/gatherings' },
+  1109→    { '@type': 'ListItem', position: 3, name: localized(gathering.title), item: `/gatherings/${gathering.slug}` },
+  1110→  ],
+  1111→}} />
+  1112→```
+  1113→
+  1114→### Hreflang tags
+  1115→
+  1116→في `src/app/[locale]/layout.tsx` metadata:
+  1117→
+  1118→```tsx
+  1119→alternates: {
+  1120→  languages: {
+  1121→    'ar': '/',
+  1122→    'en': '/en',
+  1123→    'x-default': '/',
+  1124→  },
+  1125→},
+  1126→```
+  1127→
+  1128→---
+  1129→
+  1130→## ♿ Part 5: Accessibility
+  1131→
+  1132→### Skip to content link
+  1133→
+  1134→في `src/app/[locale]/layout.tsx`، أضف في أول الـ body:
+  1135→
+  1136→```tsx
+  1137→<a 
+  1138→  href="#main-content" 
+  1139→  className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:start-2 focus:z-50 focus:bg-clay focus:text-paper focus:px-4 focus:py-2 focus:rounded"
+  1140→>
+  1141→  تخطّي إلى المحتوى
+  1142→</a>
+  1143→
+  1144→<main id="main-content">{children}</main>
+  1145→```
+  1146→
+  1147→### ARIA labels audit
+  1148→
+  1149→تأكّد من أن كل الأيقونات-only buttons لها `aria-label`:
+  1150→
+  1151→```tsx
+  1152→// قبل
+  1153→<Button variant="ghost" size="icon" onClick={...}>
+  1154→  <Search className="size-4" />
+  1155→</Button>
+  1156→
+  1157→// بعد
+  1158→<Button variant="ghost" size="icon" aria-label="بحث" onClick={...}>
+  1159→  <Search className="size-4" />
+  1160→</Button>
+  1161→```
+  1162→
+  1163→طبّق هذا على:
+  1164→- NotificationBell
+  1165→- LocaleSwitcher
+  1166→- Close buttons (X)
+  1167→- Menu toggle
+  1168→- Any icon-only button
+  1169→
+  1170→### Keyboard navigation
+  1171→
+  1172→تأكّد من أن:
+  1173→- كل العناصر التفاعلية قابلة للوصول بـ Tab
+  1174→- `:focus-visible` styling واضح (ring-2 ring-clay)
+  1175→- Modal dialogs تحبس التركيز (focus trap)
+  1176→- Escape يغلق الـ modals
+  1177→
+  1178→أضف لـ `globals.css`:
+  1179→
+  1180→```css
+  1181→@layer base {
+  1182→  *:focus-visible {
+  1183→    @apply outline-none ring-2 ring-clay ring-offset-2 ring-offset-paper;
+  1184→  }
+  1185→  
+  1186→  @media (prefers-reduced-motion: reduce) {
+  1187→    *,
+  1188→    *::before,
+  1189→    *::after {
+  1190→      animation-duration: 0.01ms !important;
+  1191→      animation-iteration-count: 1 !important;
+  1192→      transition-duration: 0.01ms !important;
+  1193→      scroll-behavior: auto !important;
+  1194→    }
+  1195→  }
+  1196→}
+  1197→```
+  1198→
+  1199→---
+  1200→
+  1201→## ⚡ Part 6: Performance
+  1202→
+  1203→### Lazy loading للـ heavy components
+  1204→
+  1205→```tsx
+  1206→// بدل:
+  1207→import { LiveCompanion } from '@/components/lamma/live/LiveCompanion';
+  1208→import { ConciergeChat } from '@/components/lamma/ai/ConciergeChat';
+  1209→
+  1210→// استخدم:
+  1211→import dynamic from 'next/dynamic';
+  1212→
+  1213→const LiveCompanion = dynamic(() => import('@/components/lamma/live/LiveCompanion').then(m => m.LiveCompanion), {
+  1214→  loading: () => <div className="min-h-[60vh] flex items-center justify-center">
+  1215→    <div className="size-8 border-2 border-clay border-t-transparent rounded-full animate-spin" />
+  1216→  </div>,
+  1217→  ssr: false, // WebSocket يحتاج client only
+  1218→});
+  1219→
+  1220→const ConciergeChat = dynamic(() => import('@/components/lamma/ai/ConciergeChat').then(m => m.ConcurrentChat), {
+  1221→  ssr: false,
+  1222→});
+  1223→```
+  1224→
+  1225→### Image audit
+  1226→
+  1227→تأكّق من أن كل `<img>` تم استبدالها بـ `<Image>` من next/image (مع `width`, `height`, `priority` للـ above-the-fold).
+  1228→
+  1229→---
+  1230→
+  1231→## ✨ Part 7: Polish
+  1232→
+  1233→### Framer Motion page transitions
+  1234→
+  1235→`src/components/lamma/PageTransition.tsx`:
+  1236→
+  1237→```tsx
+  1238→'use client';
+  1239→
+  1240→import { motion } from 'framer-motion';
+  1241→import { usePathname } from 'next/navigation';
+  1242→
+  1243→export function PageTransition({ children }: { children: React.ReactNode }) {
+  1244→  const pathname = usePathname();
+  1245→  
+  1246→  return (
+  1247→    <motion.div
+  1248→      key={pathname}
+  1249→      initial={{ opacity: 0, y: 8 }}
+  1250→      animate={{ opacity: 1, y: 0 }}
+  1251→      exit={{ opacity: 0, y: -8 }}
+  1252→      transition={{ duration: 0.2, ease: 'easeOut' }}
+  1253→    >
+  1254→      {children}
+  1255→    </motion.div>
+  1256→  );
+  1257→}
+  1258→```
+  1259→
+  1260→لفّ به الـ children في `src/app/[locale]/layout.tsx`.
+  1261→
+  1262→### Error Boundary
+  1263→
+  1264→`src/app/[locale]/error.tsx`:
+  1265→
+  1266→```tsx
+  1267→'use client';
+  1268→
+  1269→import { useEffect, useState } from 'react';
+  1270→import { Button } from '@/components/ui/button';
+  1271→import { AlertTriangle, ChevronDown, ChevronUp } from 'lucide-react';
+  1272→
+  1273→export default function Error({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
+  1274→  const [showDetails, setShowDetails] = useState(false);
+  1275→  
+  1276→  useEffect(() => {
+  1277→    console.error('Page error:', error);
+  1278→  }, [error]);
+  1279→  
+  1280→  return (
+  1281→    <div className="min-h-[60vh] flex items-center justify-center px-4">
+  1282→      <div className="text-center max-w-md">
+  1283→        <div className="inline-flex items-center justify-center size-16 rounded-full bg-clay/10 mb-6">
+  1284→          <AlertTriangle className="size-8 text-clay" />
+  1285→        </div>
+  1286→        <h1 className="font-display text-3xl mb-3">حدث خطأ غير متوقع</h1>
+  1287→        <p className="text-stone mb-6">
+  1288→          نعتذر عن الإزعاج. حاول مرة أخرى، وإن استمرت المشكلة، تواصل معنا.
+  1289→        </p>
+  1290→        
+  1291→        <Button onClick={reset} className="bg-clay hover:bg-clay/90 text-paper mb-3">
+  1292→          إعادة المحاولة
+  1293→        </Button>
+  1294→        
+  1295→        <button
+  1296→          onClick={() => setShowDetails(!showDetails)}
+  1297→          className="block mx-auto text-sm text-stone hover:text-ink"
+  1298→        >
+  1299→          {showDetails ? 'إخفاء التفاصيل' : 'عرض التفاصيل'}
+  1300→          {showDetails ? <ChevronUp className="size-3 inline ms-1" /> : <ChevronDown className="size-3 inline ms-1" />}
+  1301→        </button>
+  1302→        
+  1303→        {showDetails && (
+  1304→          <pre className="mt-3 p-3 bg-sand rounded-lg text-xs text-start overflow-auto max-h-48">
+  1305→            {error.message}
+  1306→            {error.digest && `\n\nDigest: ${error.digest}`}
+  1307→            {error.stack && `\n\n${error.stack}`}
+  1308→          </pre>
+  1309→        )}
+  1310→      </div>
+  1311→    </div>
+  1312→  );
+  1313→}
+  1314→```
+  1315→
+  1316→### Loading states
+  1317→
+  1318→`src/app/[locale]/loading.tsx`:
+  1319→
+  1320→```tsx
+  1321→export default function Loading() {
+  1322→  return (
+  1323→    <div className="min-h-[60vh] flex items-center justify-center">
+  1324→      <div className="size-8 border-2 border-clay border-t-transparent rounded-full animate-spin" />
+  1325→    </div>
+  1326→  );
+  1327→}
+  1328→```
+  1329→
+  1330→### Loading skeletons للأقسام
+  1331→
+  1332→أنشئ `src/components/lamma/Skeletons.tsx` مع عدة skeleton components:
+  1333→
+  1334→```tsx
+  1335→export function GatheringCardSkeleton() {
+  1336→  return (
+  1337→    <div className="rounded-lg overflow-hidden bg-paper">
+  1338→      <div className="aspect-[16/9] bg-sand animate-pulse" />
+  1339→      <div className="p-4 space-y-2">
+  1340→        <div className="h-4 bg-sand rounded animate-pulse w-3/4" />
+  1341→        <div className="h-3 bg-sand rounded animate-pulse w-1/2" />
+  1342→        <div className="h-3 bg-sand rounded animate-pulse w-1/3" />
+  1343→      </div>
+  1344→    </div>
+  1345→  );
+  1346→}
+  1347→
+  1348→export function GatheringsGridSkeleton({ count = 6 }: { count?: number }) {
+  1349→  return (
+  1350→    <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+  1351→      {Array.from({ length: count }).map((_, i) => <GatheringCardSkeleton key={i} />)}
+  1352→    </div>
+  1353→  );
+  1354→}
+  1355→
+  1356→// ... skeletons أخرى حسب الحاجة
+  1357→```
+  1358→
+  1359→---
+  1360→
+  1361→## 🐳 Part 8: Production Readiness
+  1362→
+  1363→### `Dockerfile` (multi-stage, مستند لمرجع العمليات)
+  1364→
+  1365→استخدم الـ Dockerfile من `/home/z/my-project/reference/GLM-5.2-Assistant-Operations-Reference.md` قسم 5.3 — عدّله لـ:
+  1366→- يبني الـ Next.js standalone
+  1367→- يبني الـ live-companion mini-service
+  1368→- يشتغل الـ mini-service بـ supervisord أو process manager
+  1369→
+  1370→```dockerfile
+  1371→# ==========================================
+  1372→# Stage 1: deps
+  1373→# ==========================================
+  1374→FROM oven/bun:1-slim AS deps
+  1375→WORKDIR /app
+  1376→COPY package.json bun.lockb ./
+  1377→RUN bun install --frozen-lockfile
+  1378→
+  1379→# ==========================================
+  1380→# Stage 2: builder
+  1381→# ==========================================
+  1382→FROM oven/bun:1-slim AS builder
+  1383→WORKDIR /app
+  1384→COPY --from=deps /app/node_modules ./node_modules
+  1385→COPY . .
+  1386→ENV NEXT_TELEMETRY_DISABLED=1
+  1387→ENV NODE_ENV=production
+  1388→RUN bun ./node_modules/prisma/build/index.js generate
+  1389→RUN bun run build
+  1390→
+  1391→# Build live-companion
+  1392→RUN cd mini-services/live-companion && bun install
+  1393→
+  1394→# ==========================================
+  1395→# Stage 3: prod-deps
+  1396→# ==========================================
+  1397→FROM oven/bun:1-slim AS prod-deps
+  1398→WORKDIR /app
+  1399→COPY package.json bun.lockb ./
+  1400→RUN bun install --production --frozen-lockfile --ignore-scripts
+  1401→COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+  1402→COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
+  1403→
+  1404→# ==========================================
+  1405→# Stage 4: runner
+  1406→# ==========================================
+  1407→FROM oven/bun:1-slim AS runner
+  1408→WORKDIR /app
+  1409→ENV NODE_ENV=production
+  1410→ENV NEXT_TELEMETRY_DISABLED=1
+  1411→ENV PORT=3000
+  1412→ENV HOSTNAME=0.0.0.0
+  1413→ENV LIVE_COMPANION_PORT=3003
+  1414→
+  1415→RUN addgroup --system --gid 1001 nodejs \
+  1416→ && adduser --system --uid 1001 nextjs
+  1417→
+  1418→# Copy Next.js standalone
+  1419→COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+  1420→COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+  1421→COPY --from=builder --chown=nextjs:nodejs /app/public ./public
+  1422→
+  1423→# Copy prod deps + prisma
+  1424→COPY --from=prod-deps --chown=nextjs:nodejs /app/node_modules ./node_modules
+  1425→COPY --from=builder --chown=nextjs:nodejs /app/node_modules/prisma ./node_modules/prisma
+  1426→COPY --chown=nextjs:nodejs prisma ./prisma
+  1427→COPY --chown=nextjs:nodejs package.json ./package.json
+  1428→
+  1429→# Copy live-companion
+  1430→COPY --from=builder --chown=nextjs:nodejs /app/mini-services ./mini-services
+  1431→
+  1432→USER nextjs
+  1433→EXPOSE 3000 3003
+  1434→
+  1435→# Start both services (Next.js + Live Companion)
+  1436→CMD sh -c "node server.js & cd mini-services/live-companion && bun run start & wait"
+  1437→```
+  1438→
+  1439→### `railway.json`
+  1440→
+  1441→```json
+  1442→{
+  1443→  "$schema": "https://railway.app/railway.schema.json",
+  1444→  "build": {
+  1445→    "builder": "DOCKERFILE",
+  1446→    "dockerfilePath": "Dockerfile"
+  1447→  },
+  1448→  "deploy": {
+  1449→    "startCommand": "sh -c 'node server.js & cd mini-services/live-companion && bun run start & wait'",
+  1450→    "healthcheckPath": "/api/v1/health",
+  1451→    "healthcheckTimeout": 180,
+  1452→    "restartPolicyType": "ON_FAILURE",
+  1453→    "restartPolicyMaxRetries": 3
+  1454→  }
+  1455→}
+  1456→```
+  1457→
+  1458→### `.dockerignore`
+  1459→
+  1460→```
+  1461→node_modules
+  1462→.next
+  1463→.git
+  1464→.gitignore
+  1465→README.md
+  1466→.env*.local
+  1467→.DS_Store
+  1468→npm-debug.log*
+  1469→.vscode
+  1470→.idea
+  1471→coverage
+  1472→*.md
+  1473→!prisma/seed-standalone.ts
+  1474→download/
+  1475→tool-results/
+  1476→```
+  1477→
+  1478→### `.env.example`
+  1479→
+  1480→```bash
+  1481→# ==========================================
+  1482→# Database (PROD: Supabase PostgreSQL)
+  1483→# ==========================================
+  1484→DATABASE_URL="postgresql://postgres.lamma:[PASSWORD]@aws-0-eu-west-1.pooler.supabase.com:6543/postgres?pgbouncer=true"
+  1485→DIRECT_URL="postgresql://postgres.lamma:[PASSWORD]@aws-0-eu-west-1.pooler.supabase.com:5432/postgres"
+  1486→
+  1487→# ==========================================
+  1488→# Auth
+  1489→# ==========================================
+  1490→NEXTAUTH_SECRET="generate-with-openssl-rand-base64-32"
+  1491→NEXTAUTH_URL="https://lamma-production.up.railway.app"
+  1492→NODE_ENV="production"
+  1493→
+  1494→# ==========================================
+  1495→# AI (PROD: OpenAI)
+  1496→# ==========================================
+  1497→OPENAI_API_KEY="sk-..."
+  1498→# PROD-ONLY: replace z-ai-web-dev-sdk with openai client
+  1499→
+  1500→# ==========================================
+  1501→# Payments (PROD: Tap Payments)
+  1502→# ==========================================
+  1503→TAP_SECRET_KEY="sk_live_..."
+  1504→TAP_PUBLIC_KEY="pk_live_..."
+  1505→
+  1506→# ==========================================
+  1507→# Maps (PROD: Mapbox)
+  1508→# ==========================================
+  1509→NEXT_PUBLIC_MAPBOX_TOKEN="pk.eyJ1IjoibGFtbWEiLC..."
+  1510→
+  1511→# ==========================================
+  1512→# Email (PROD: Resend)
+  1513→# ==========================================
+  1514→RESEND_API_KEY="re_..."
+  1515→EMAIL_FROM="hello@lamma.kw"
+  1516→
+  1517→# ==========================================
+  1518→# Image CDN (PROD: Cloudinary)
+  1519→# ==========================================
+  1520→CLOUDINARY_CLOUD_NAME="..."
+  1521→CLOUDINARY_API_KEY="..."
+  1522→CLOUDINARY_API_SECRET="..."
+  1523→
+  1524→# ==========================================
+  1525→# Live Companion (auto)
+  1526→# ==========================================
+  1527→LIVE_COMPANION_PORT=3003
+  1528→
+  1529→# ==========================================
+  1530→# Analytics (PROD)
+  1531→# ==========================================
+  1532→NEXT_PUBLIC_SENTRY_DSN="https://..."
+  1533→SENTRY_DSN="https://..."
+  1534→NEXT_PUBLIC_GA_ID="G-..."
+  1535→```
+  1536→
+  1537→### `README.md`
+  1538→
+  1539→```markdown
+  1540→# 🌙 لَمَّة (Lamma)
+  1541→
+  1542→> منصة كويتية لتجمعات حميمية مُنتقاة — نحن لا نبني تطبيقات CRUD، نحن نبني منتجات ثقافية.
+  1543→
+  1544→## ✨ الميزات
+  1545→
+  1546→- **Discovery Layer** — تصفّح اللمات، أصحاب التجمعات، المواضيع التحريرية، الرسائل
+  1547→- **Application-based attendance** — تقديم طلب بدل شراء تذكرة
+  1548→- **AI Concierge** — مساعد ذكي يجيب عن أسئلة المستخدمين
+  1549→- **AI Content Enrichment** — ملخصات تلقائية، تحسين الأوصاف، اقتراح أسئلة
+  1550→- **Smart Matching** — مطابقة ذكية بـ TF-IDF + explainable AI
+  1551→- **Live Companion** — رفيق لحظي أثناء اللمة (chat + moments + presence)
+  1552→- **Host Dashboard** — مراجعة الطلبات، analytics، messaging inbox
+  1553→- **Prayer-aware scheduling** — احترام مواقيت الصلاة
+  1554→- **Bilingual (AR/EN)** — مع دعم RTL/LTR كامل
+  1555→- **PWA** — قابل للتثبيت كتطبيق
+  1556→
+  1557→## 🛠️ Tech Stack
+  1558→
+  1559→- **Frontend:** Next.js 16, React 19, TypeScript 5, Tailwind CSS 4, shadcn/ui
+  1560→- **Backend:** Next.js API Routes, Prisma 6, SQLite (dev) / PostgreSQL (prod)
+  1561→- **AI:** z-ai-web-dev-sdk (LLM), local TF-IDF matching engine
+  1562→- **Realtime:** socket.io mini-service (port 3003)
+  1563→- **Auth:** Zustand + localStorage (dev) / NextAuth.js (prod)
+  1564→
+  1565→## 🚀 Quick Start
+  1566→
+  1567→\`\`\`bash
+  1568→# Install
+  1569→bun install
+  1570→
+  1571→# Generate Prisma client
+  1572→bun run db:generate
+  1573→
+  1574→# Push schema to SQLite
+  1575→bun run db:push
+  1576→
+  1577→# Generate AI images
+  1578→bun run gen:images
+  1579→
+  1580→# Start dev server (port 3000)
+  1581→bun run dev
+  1582→
+  1583→# In another terminal, start Live Companion (port 3003)
+  1584→bun run live:install
+  1585→bun run live:start
+  1586→\`\`\`
+  1587→
+  1588→## 📂 Project Structure
+  1589→
+  1590→(نظرة شاملة على المجلدات الرئيسية)
+  1591→
+  1592→## 🌐 Locales
+  1593→
+  1594→- `ar` (default, RTL)
+  1595→- `en` (LTR)
+  1596→
+  1597→## 👥 Demo Users
+  1598→
+  1599→| Email | Password | Role |
+  1600→|-------|----------|------|
+  1601→| noura@lamma.demo | demo | Regular attendee |
+  1602→| ahmad@lamma.demo | demo | Curator |
+  1603→| sara@lamma.demo | demo | Newcomer |
+  1604→| khaled@lamma.demo | demo | Host |
+  1605→
+  1606→## 🚢 Production Deployment
+  1607→
+  1608→(تعليمات Railway + Supabase مستندة لمرجع العمليات)
+  1609→
+  1610→## 📝 License
+  1611→
+  1612→MIT
+  1613→```
+  1614→
+  1615→---
+  1616→
+  1617→## 📊 إضافة مفاتيح الترجمة
+  1618→
+  1619→أضف لـ `messages/{ar,en}.json`:
+  1620→
+  1621→```json
+  1622→{
+  1623→  "pwa": {
+  1624→    "installTitle": "ثبّت لَمَّة على جهازك" / "Install Lamma on your device",
+  1625→    "installSubtitle": "وصول أسرع، إشعارات، واستخدام دون اتصال" / "Faster access, notifications, and offline use",
+  1626→    "install": "تثبيت" / "Install",
+  1627→    "dismiss": "إغلاق" / "Dismiss"
+  1628→  },
+  1629→  "notifications": {
+  1630→    "title": "الإشعارات" / "Notifications",
+  1631→    "subtitle": "{count} إشعار غير مقروء" / "{count} unread",
+  1632→    "filters": {
+  1633→      "all": "الكل" / "All",
+  1634→      "unread": "غير مقروء" / "Unread"
+  1635→    },
+  1636→    "enableBrowserTitle": "فعّل إشعارات المتصفح" / "Enable browser notifications",
+  1637→    "enableBrowserSubtitle": "احصل على تنبيهات فورية عند الموافقة على طلباتك أو نشر لمات جديدة" / "Get instant alerts when your applications are approved or new gatherings are posted",
+  1638→    "enableBrowser": "تفعيل" / "Enable",
+  1639→    "enabled": "تم تفعيل الإشعارات" / "Notifications enabled",
+  1640→    "enabledBody": "ستصلك تنبيهات فورية الآن" / "You'll receive instant alerts now",
+  1641→    "markAllRead": "تعليم الكل كمقروء" / "Mark all as read",
+  1642→    "empty": "لا توجد إشعارات" / "No notifications"
+  1643→  },
+  1644→  "host": {
+  1645→    "messages": {
+  1646→      "title": "الرسائل" / "Messages",
+  1647→      "subtitle": "محادثاتك مع المتقدمين والحاضرين" / "Your conversations with applicants and attendees",
+  1648→      "conversations": "المحادثات" / "Conversations",
+  1649→      "empty": "لا توجد محادثات بعد" / "No conversations yet",
+  1650→      "selectConversation": "اختر محادثة للبدء" / "Select a conversation to start",
+  1651→      "messagePlaceholder": "اكتب رسالة..." / "Type a message..."
+  1652→    }
+  1653→  },
+  1654→  "nav": {
+  1655→    "notifications": "الإشعارات" / "Notifications"
+  1656→  }
+  1657→}
+  1658→```
+  1659→
+  1660→---
+  1661→
+  1662→## 📋 قائمة التحقق النهائية (Must Pass)
+  1663→
+  1664→### PWA
+  1665→- [ ] `manifest.json` موجود في `public/`
+  1666→- [ ] Service worker يسجّل في production
+  1667→- [ ] InstallPrompt يظهر عند `beforeinstallprompt`
+  1668→- [ ] Apple touch icon + meta tags في layout
+  1669→
+  1670→### Notifications
+  1671→- [ ] `/dashboard/notifications` يعرض قائمة الإشعارات
+  1672→- [ ] Browser notification permission flow يعمل
+  1673→- [ ] Filter tabs (all/unread) تعمل (native buttons)
+  1674→- [ ] NotificationBell في header للـ hosts مع unread count
+  1675→
+  1676→### Messaging
+  1677→- [ ] `/dashboard/host/messages` يعرض conversations list + thread view
+  1678→- [ ] 3 seed conversations لخالد
+  1679→- [ ] Send message يضيفها للـ thread
+  1680→- [ ] Mock reply يأتي بعد 2-4 ثوان
+  1681→- [ ] Unread count يتحدث
+  1682→
+  1683→### SEO
+  1684→- [ ] `/sitemap.xml` يرجع XML صالح بكل الصفحات
+  1685→- [ ] `/robots.txt` يرجع القواعد
+  1686→- [ ] JSON-LD على gathering detail (Event type)
+  1687→- [ ] JSON-LD على letter detail (Article type)
+  1688→- [ ] JSON-LD على host detail (Person type)
+  1689→- [ ] JSON-LD BreadcrumbList على كل detail pages
+  1690→- [ ] hreflang tags في layout
+  1691→- [ ] Canonical URLs
+  1692→
+  1693→### Accessibility
+  1694→- [ ] Skip to content link يظهر عند focus
+  1695→- [ ] كل icon-only buttons لها aria-label
+  1696→- [ ] :focus-visible styling واضح
+  1697→- [ ] prefers-reduced-motion media query يعمل
+  1698→
+  1699→### Performance
+  1700→- [ ] LiveCompanion lazy loaded (dynamic import)
+  1701→- [ ] ConciergeChat lazy loaded
+  1702→- [ ] كل الصور من next/image
+  1703→- [ ] Bundle size معقول (< 500KB initial)
+  1704→
+  1705→### Polish
+  1706→- [ ] Page transitions بـ Framer Motion
+  1707→- [ ] `error.tsx` مع show/hide details
+  1708→- [ ] `loading.tsx` مع spinner
+  1709→- [ ] Loading skeletons للأقسام الرئيسية
+  1710→- [ ] Hover states على كل العناصر التفاعلية
+  1711→
+  1712→### Production Readiness
+  1713→- [ ] `Dockerfile` موجود ومتعدد المراحل
+  1714→- [ ] `railway.json` موجود
+  1715→- [ ] `.dockerignore` موجود
+  1716→- [ ] `.env.example` شامل
+  1717→- [ ] `README.md` احترافي
+  1718→- [ ] `LICENSE` (MIT)
+  1719→- [ ] كل PROD-ONLY comments موثّقة
+  1720→
+  1721→### Quality
+  1722→- [ ] `bun run lint` — 0 errors, 0 warnings
+  1723→- [ ] dev server يعمل، `dev.log` نظيف
+  1724→- [ ] mini-service (port 3003) يعمل
+  1725→- [ ] كل المسارات الـ24+ تعمل بـ 200
+  1726→
+  1727→### Agent Browser E2E (Final Demo)
+  1728→- [ ] زائر: يفتح `/` → hero + gatherings
+  1729→- [ ] زائر: لا يرى InstallPrompt فوراً (يحتاج قبلinstallprompt)
+  1730→- [ ] تسجيل دخول كنورة → dashboard
+  1731→- [ ] نورة تفتح `/dashboard/notifications` → قائمة إشعارات
+  1732→- [ ] نورة تفعّل browser notifications → permission prompt
+  1733→- [ ] تسجيل دخول كخالد → host messages
+  1734→- [ ] خالد يفتح محادثة → يرسل رسالة → ينتظر reply → يصل
+  1735→- [ ] خالد يرى unread count في sidebar
+  1736→- [ ] فتح `/sitemap.xml` → XML صالح
+  1737→- [ ] فتح `/robots.txt` → القواعد
+  1738→- [ ] فتح أي gathering detail → تحقق من JSON-LD في page source
+  1739→- [ ] Tab navigation: كل العناصر قابلة للوصول
+  1740→- [ ] Skip link يعمل عند الضغط على Tab
+  1741→
+  1742→---
+  1743→
+  1744→## 📝 التقرير النهائي المطلوب
+  1745→
+  1746→1. قائمة كل الملفات الجديدة/المعدّلة (tree view)
+  1747→2. لقطة `bun run lint`
+  1748→3. لقطة `curl http://localhost:3000/api/v1/health`
+  1749→4. لقطة `curl http://localhost:3000/sitemap.xml | head -30`
+  1750→5. لقطة `curl http://localhost:3000/robots.txt`
+  1751→6. سيناريو اختبار كامل (step by step) مع لقطات شاشة:
+  1752→   - InstallPrompt UI
+  1753→   - NotificationCenter page
+  1754→   - Browser notification permission
+  1755→   - Host messaging inbox (conversation + reply)
+  1756→   - JSON-LD في page source
+  1757→   - Page transition animation
+  1758→   - Error page (عرض التفاصيل)
+  1759→   - Loading skeleton
+  1760→7. قائمة كل PROD-ONLY comments الموجودة في الكود
+  1761→8. أي قرارات معمارية / انحرافات عن المواصفات
+  1762→9. **التقرير النهائي للمشروع**: ما الذي تم إنجازه عبر كل المراحل الـ5؟
+  1763→
+  1764→---
+  1765→
+  1766→## ⚠️ قواعد صارمة
+  1767→
+  1768→1. **هذه المرحلة الأخيرة** — ركّز على polish + completeness
+  1769→2. **لا تضف ميزات جديدة غير موصوفة** — فقط ما هو مذكور في هذا البرومبت
+  1770→3. **Native buttons** بدل Radix Tabs/Checkbox في كل مكان
+  1771→4. **z-ai-web-dev-sdk للـ backend فقط**
+  1772→5. **كل النصوص في `messages/*.json`**
+  1773→6. **استخدم logical properties**
+  1774→7. **TypeScript strict** — لا `any`
+  1775→8. **PROD-ONLY comments** لكل placeholder للإنتاج
+  1776→9. **احترم الـ file structure**
+  1777→10. **اكتب worklog في `/home/z/my-project/worklog.md`** (append — مرحلة أخيرة)
+  1778→11. **اقرأ `dev.log` بعد كل تغيير كبير**
+  1779→12. **ابدأ Agent Browser قبل الإبلاغ بالانتهاء**
+  1780→13. **Dockerfile + railway.json + .env.example إلزامية**
+  1781→14. **README.md احترافي إلزامي**
+  1782→15. **PWA manifest + service worker إلزامية**
+  1783→16. **SEO sitemap + robots + JSON-LD إلزامية**
+  1784→
+  1785→ابدأ الآن — هذه المرحلة الأخيرة ستُكمل المشروع للتسليم النهائي.
+  1786→```
+  1787→
+  1788→---
+  1789→

@@ -162,7 +162,13 @@
     "featured": "Featured letter",
     "moreLetters": "More letters",
     "aiSummaryLabel": "AI summary",
-    "moreLettersTitle": "Read next"
+    "moreLettersTitle": "Read next",
+    "title": "Letters from Lamma",
+    "subtitle": "Stories told after every gathering",
+    "description": "Every gathering leaves a trace, and these letters preserve it.",
+    "share": "Share",
+    "copyLink": "Copy link",
+    "aboutAuthor": "About the author"
   },
   "prayer": {
     "label": "Prayer times",
@@ -516,7 +522,11 @@
       "application": "Application",
       "hosting": "Hosting",
       "payment": "Payment",
-      "conduct": "Conduct"
+      "conduct": "Conduct",
+      "gatherings": "Gatherings & attendance",
+      "hosts": "Hosts",
+      "payments": "Payments & cancellation",
+      "tech": "Technology & privacy"
     },
     "q1": "What is Lamma?",
     "a1": "Lamma is a Kuwaiti platform for curated intimate gatherings. Every gathering is a small circle (8–50 people) hosted by someone who knows their guests, around a specific editorial topic.",
@@ -559,7 +569,10 @@
     "q20": "How do I contact you?",
     "a20": "Via hello@lamma.kw or a direct message on Instagram @lamma.kw. We reply within 48 hours.",
     "ctaTitle": "Didn't find your answer?",
-    "ctaButton": "Contact us"
+    "ctaButton": "Contact us",
+    "notFound": "Didn't find your answer?",
+    "contactCta": "Contact us",
+    "breadcrumbs": "FAQ"
   },
   "notFound": {
     "title": "You've lost your way",
@@ -692,7 +705,12 @@
     "messages": {
       "title": "Messages",
       "comingSoon": "Coming soon",
-      "backToApplications": "Back to applications"
+      "backToApplications": "Back to applications",
+      "subtitle": "Direct messaging with applicants",
+      "conversations": "Conversations",
+      "empty": "No conversations",
+      "selectConversation": "Select a conversation",
+      "messagePlaceholder": "Type a message..."
     },
     "newGathering": {
       "title": "New gathering",
@@ -733,7 +751,17 @@
     "title": "Notifications",
     "markAllRead": "Mark all as read",
     "empty": "No notifications",
-    "viewAll": "View all"
+    "viewAll": "View all",
+    "subtitle": "{count} unread",
+    "enableBrowserTitle": "Enable browser notifications",
+    "enableBrowserSubtitle": "Get instant notifications for new applications",
+    "enableBrowser": "Enable",
+    "enabled": "Enabled!",
+    "enabledBody": "You will now receive notifications",
+    "filters": {
+      "all": "All",
+      "unread": "Unread"
+    }
   },
   "applications": {
     "title": "My applications",
@@ -790,5 +818,11 @@
     "enterLiveNow": "Enter live gathering",
     "enterLiveEarly": "Enter early",
     "tryLiveDemo": "Try Live Companion"
+  },
+  "pwa": {
+    "installTitle": "Install Lamma",
+    "installSubtitle": "Quick access from your home screen",
+    "install": "Install",
+    "dismiss": "Dismiss"
   }
 }
