@@ -162,3 +162,59 @@ Stage Summary:
   * Host applications: AIReviewInsight visible
   * New gathering form: 6 step circles (5 steps + back arrow)
   * All 4 API routes return 200
+
+---
+Task ID: 4
+Agent: orchestrator (main)
+Task: Phase 4 — Real-time Live Companion + WebSocket + Complete 2A/2B Details.
+
+Work Log:
+Part 1: Complete 2A/2B detail components
+- Built ApplicationCTA with MatchScoreRing for logged-in users (match prediction before applying), existing application detection, applications closed state, login redirect for guests.
+- Built CapacityCard with approved/pending/waitlisted progress bars + avatar grid (up to 8 approved attendees with +N overflow).
+- Built LocationCard with animated SVG map (stylized streets, buildings, pulsing pin positioned by lat/lng, grid pattern), venue name/address/notes, hidden location state.
+- Built DetailHostCard (clickable, links to /hosts/[handle], avatar + verified badge + stats).
+- Built NotificationBell (dropdown with unread badge, mark all read, mark individual read, 5 recent notifications, formatRelative timestamps).
+- Updated gathering detail page to use all 4 detail components + Live Companion CTA link.
+- Updated SiteHeader to show NotificationBell for hosts only (isUserHost check).
+- Fixed StatusBadge to support all gathering statuses (DRAFT, PUBLISHED, APPLICATIONS_OPEN, etc.) in addition to application statuses.
+- Added missing translation keys: gatherings (applyCta, price, free, kwd, capacity, location, etc.), application_status (ATTENDED, NO_SHOW, DRAFT, PUBLISHED, etc.), live namespace.
+
+Part 2: WebSocket mini-service
+- Created mini-services/live-companion/ with package.json, tsconfig.json, index.ts.
+- Socket.io server on port 3003 with path '/', CORS '*'.
+- Per-gathering in-memory state (attendees, messages, moments).
+- Mock bots: 3 bot attendees (محمد, فاطمة, عبدالله) with auto-seeding on first join (2 attendees + 3 messages + 1 moment).
+- Bot simulation: posts mock messages every 45-90 seconds.
+- Events: gathering:join, message:send, moment:create, moment:heart, typing:start/stop, disconnect.
+- System messages on join/leave.
+- Installed socket.io in mini-service, socket.io-client in main project.
+
+Part 2: Live Companion UI
+- Built LiveCompanion component with:
+  - Native tab buttons (chat/moments/attendees — no Radix Tabs).
+  - Real-time chat: messages with avatars, system messages centered, typing indicator, auto-scroll, message input with Enter to send.
+  - Moments: highlight/quote creation via prompt(), heart button, styled cards (saffron for highlights, clay for quotes, italic font-display for quotes).
+  - Attendees: presence list with online indicator (green dot), host badge, joined time.
+  - Time counter: HH:MM:SS elapsed since gathering start, updates every second.
+  - PrayerTimeBadge in header.
+  - Sidebar: attendee count with avatar grid, prayer reminder card.
+  - WebSocket connection via io('/?XTransformPort=3003', { transports: ['websocket'] }).
+- Built /gatherings/[slug]/live page (server component with RequireAuth + LiveCompanion).
+- Added live translation namespace (AR+EN).
+
+Stage Summary:
+- Phase 4 COMPLETE. lint=0 errors. dev.log clean. Both servers running.
+- Route audit:
+  * / → 200
+  * /gatherings/[slug] → 200 (with ApplicationCTA + CapacityCard + LocationCard + DetailHostCard + Live Companion link)
+  * /gatherings/[slug]/live → 200 (LiveCompanion with WebSocket)
+  * /dashboard/host/applications → 200 (with AIReviewInsight + 9 match score bars)
+  * /api/v1/health → 200
+  * /api/v1/ai/health → 200
+  * mini-service on port 3003 → running
+- Agent Browser verified:
+  * Gathering detail: apply CTA + capacity + location (SVG map) + host card + live companion link
+  * Live Companion: 3 native tabs (chat/moments/attendees), WebSocket connected, 2 mock messages, attendee count
+  * Host applications: AIReviewInsight visible, 9 match score bars
+  * NotificationBell: wired in SiteHeader for hosts

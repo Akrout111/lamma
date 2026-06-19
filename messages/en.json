@@ -95,7 +95,25 @@
     "format": "Format",
     "capacityInfo": "{filled} of {total} seats",
     "venueNotes": "Venue notes",
-    "applicationCta": "Apply for this gathering"
+    "applicationCta": "Apply for this gathering",
+    "applyNote": "Applying does not guarantee attendance",
+    "applicationsCloseIn": "Applications close {time}",
+    "alreadyApplied": "You've already applied",
+    "applicationId": "Application ID",
+    "currentStatus": "Current status",
+    "viewInDashboard": "View in dashboard",
+    "closed": "Closed",
+    "loginToApply": "Log in to apply",
+    "fullyBooked": "Fully booked",
+    "locationHidden": "Address revealed after approval",
+    "mapPreview": "Map preview",
+    "approved": "Approved",
+    "pending": "Pending",
+    "waitlisted": "Waitlisted",
+    "applyCta": "Apply to join",
+    "price": "Price",
+    "location": "Location",
+    "related": "Related gatherings"
   },
   "hosts": {
     "verified": "Verified",
@@ -175,7 +193,15 @@
     "APPROVED": "Approved",
     "REJECTED": "Declined",
     "WAITLISTED": "Waitlisted",
-    "CANCELLED": "Cancelled"
+    "CANCELLED": "Cancelled",
+    "ATTENDED": "Attended",
+    "NO_SHOW": "No-show",
+    "DRAFT": "Draft",
+    "PUBLISHED": "Published",
+    "APPLICATIONS_OPEN": "Applications open",
+    "APPLICATIONS_CLOSED": "Applications closed",
+    "IN_PROGRESS": "In progress",
+    "COMPLETED": "Completed"
   },
   "status": {
     "DRAFT": "Draft",
@@ -741,5 +767,28 @@
       "motivation-too-short": "At least 50 chars",
       "declaration-required": "Required"
     }
+  },
+  "live": {
+    "backToGathering": "Back to gathering",
+    "live": "Live",
+    "connecting": "Connecting...",
+    "hereNow": "here now",
+    "chat": "Chat",
+    "moments": "Moments",
+    "attendees": "Attendees",
+    "messagePlaceholder": "Type a message...",
+    "typing": "typing...",
+    "addHighlight": "Add highlight",
+    "addQuote": "Add quote",
+    "noMomentsYet": "No moments yet. Be the first!",
+    "whosHere": "Who's here",
+    "host": "Host",
+    "joinedAgo": "Joined {time} min ago",
+    "attendeesCount": "{count} attending",
+    "prayerReminder": "Prayer reminder",
+    "prayerReminderHint": "We will remind you 10 min before each prayer",
+    "enterLiveNow": "Enter live gathering",
+    "enterLiveEarly": "Enter early",
+    "tryLiveDemo": "Try Live Companion"
   }
 }

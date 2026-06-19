@@ -95,7 +95,25 @@
     "format": "الصيغة",
     "capacityInfo": "{filled} من {total} مقعد",
     "venueNotes": "ملاحظات المكان",
-    "applicationCta": "قدّم لهذه اللمة"
+    "applicationCta": "قدّم لهذه اللمة",
+    "applyNote": "الطلب لا يضمن الحضور — يُراجَع من صاحب اللمة",
+    "applicationsCloseIn": "يغلق التقديم {time}",
+    "alreadyApplied": "لقد قدّمت طلباً لهذه اللمة",
+    "applicationId": "رقم الطلب",
+    "currentStatus": "الحالة الحالية",
+    "viewInDashboard": "عرض في لوحتي",
+    "closed": "مغلق",
+    "loginToApply": "سجّل الدخول للتقديم",
+    "fullyBooked": "مكتمل",
+    "locationHidden": "العنوان يُكشف بعد القبول",
+    "mapPreview": "معاينة الخريطة",
+    "approved": "مقبولون",
+    "pending": "قيد المراجعة",
+    "waitlisted": "قائمة الانتظار",
+    "applyCta": "قدّم طلباً",
+    "price": "السعر",
+    "location": "الموقع",
+    "related": "لمات ذات صلة"
   },
   "hosts": {
     "verified": "موثّق",
@@ -175,7 +193,15 @@
     "APPROVED": "مقبول",
     "REJECTED": "مرفوض",
     "WAITLISTED": "قائمة الانتظار",
-    "CANCELLED": "ملغى"
+    "CANCELLED": "ملغى",
+    "ATTENDED": "حضر",
+    "NO_SHOW": "لم يحضر",
+    "DRAFT": "مسودّة",
+    "PUBLISHED": "منشور",
+    "APPLICATIONS_OPEN": "التقديم مفتوح",
+    "APPLICATIONS_CLOSED": "التقديم مغلق",
+    "IN_PROGRESS": "جارية",
+    "COMPLETED": "اكتملت"
   },
   "status": {
     "DRAFT": "مسودّة",
@@ -741,5 +767,28 @@
       "motivation-too-short": "50 حرف على الأقل",
       "declaration-required": "مطلوب"
     }
+  },
+  "live": {
+    "backToGathering": "العودة لللمة",
+    "live": "مباشر",
+    "connecting": "جارٍ الاتصال...",
+    "hereNow": "هنا الآن",
+    "chat": "المحادثة",
+    "moments": "لحظات",
+    "attendees": "الحاضرون",
+    "messagePlaceholder": "اكتب رسالة...",
+    "typing": "يكتب...",
+    "addHighlight": "أضف لحظة مميزة",
+    "addQuote": "أضف اقتباساً",
+    "noMomentsYet": "لا توجد لحظات بعد. كن أول من يضيف!",
+    "whosHere": "من هنا الآن",
+    "host": "صاحب التجمع",
+    "joinedAgo": "انضم قبل {time} دقيقة",
+    "attendeesCount": "{count} حاضر",
+    "prayerReminder": "تذكير الصلاة",
+    "prayerReminderHint": "سنذكّرك قبل 10 دقائق من كل صلاة",
+    "enterLiveNow": "ادخل اللمة المباشرة",
+    "enterLiveEarly": "ادخل مبكراً",
+    "tryLiveDemo": "تجربة الرفيق اللحظي"
   }
 }

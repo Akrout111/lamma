@@ -1,0 +1,1525 @@
+     1→
+     2→---
+     3→
+     4→# 📨 البرومبت #4 — Real-time Live Companion + WebSocket + Complete 2A/2B Details
+     5→
+     6→انسخ البرومبت التالي وأرسله إلى GLM 5.2 Full Stack Agent:
+     7→
+     8→```markdown
+     9→# مهمة: المرحلة 4 — Real-time Live Companion + WebSocket + إكمال تفاصيل 2A/2B
+    10→
+    11→## ⚠️ تحذير حرج
+    12→
+    13→Phase 3C أعادت بناء كل المسارات (24 route تعمل بـ 200). لكن تقرير الوكيل لاحظ أن بعض تفاصيل Phase 2A/2B قد لا تكون مكتملة داخل الصفحات. هذه المرحلة ستفعّل وتكمل هذه التفاصيل **ثم** تبني Live Companion فوقها.
+    14→
+    15→## 📖 السياق والمراجع الإلزامية
+    16→
+    17→المراحل 0, 1A, 1B, 2A, 2B, 3A, 3B, 3C مكتملة. اقرأ أولاً:
+    18→1. `/home/z/my-project/worklog.md` — سجل العمل الكامل
+    19→2. `/home/z/my-project/reference/Lamma-Project-Full-Documentation.md` — قسم 8.5 (Real-time Companion) + قسم 7.5 (Calendar) + قسم 7.6 (Notifications)
+    20→3. `src/app/[locale]/gatherings/[slug]/page.tsx` — صفحة التفاصيل الحالية (تحقّق من اكتمالها)
+    21→4. `src/components/lamma/gatherings/detail/` — مكونات التفاصيل (ApplicationCTA, CapacityCard, LocationCard, HostCard)
+    22→5. **مهم جداً:** اقرأ ملف `/home/z/my-project/skills/fullstack-dev/SKILL.md` (أو ما يكافئه) — خاص قسم "WebSocket / Socket.io Support" و "Mini Service"
+    23→6. `examples/websocket/` — يوجد demo لـ websocket (frontend.tsx + server.ts) — ادرسه قبل البدء
+    24→
+    25→**هذه المرحلة 4 من 8 مراحل. لا تتجاوز نطاقها.**
+    26→
+    27→---
+    28→
+    29→## 🎯 هدف هذه المرحلة بالضبط
+    30→
+    31→### الجزء الأول: إكمال تفاصيل 2A/2B (Priority 1)
+    32→1. ✅ **ApplicationCTA** مع match prediction (MatchScoreRing للمسجّلين)
+    33→2. ✅ **CapacityCard** كامل (approved/pending/waitlisted + avatar grid + progress bar)
+    34→3. ✅ **LocationCard** بخريطة SVG مرسومة + venue details
+    35→4. ✅ **ApplyForm** كامل (4 خطوات + motivation validation + custom questions + logistics + review)
+    36→5. ✅ **Cancel confirmation** بـ AlertDialog (أو native confirm dialog)
+    37→6. ✅ **NotificationBell** في SiteHeader للـ hosts (مع unread count)
+    38→7. ✅ **ApplicationDetailDialog** يعرض كل الإجابات + status timeline
+    39→
+    40→### الجزء الثاني: Live Companion (Priority 2)
+    41→8. ✅ **WebSocket mini-service** على port 3003 (socket.io)
+    42→9. ✅ **Live Companion page** `/[locale]/gatherings/[slug]/live`
+    43→10. ✅ **Real-time chat** للحاضرين فقط
+    44→11. ✅ **Moments** (صور/اقتباسات/highlights) real-time
+    45→12. ✅ **Attendee presence** ("من متصل الآن" + avatars)
+    46→13. ✅ **Time counter** (متبقي للنهاية أو وقت انقضى)
+    47→14. ✅ **Prayer-time reminder** (إشعار قبل 10 دقائق من صلاة)
+    48→15. ✅ **"Enter live mode" CTA** على gathering detail (لللمة القادمة/الجارية)
+    49→16. ✅ **Mock attendees** للحضور (3-5 أشخاص وهميين يتحدثون أحياناً)
+    50→
+    51→**لا تبني في هذه المرحلة:**
+    52→- ❌ Push notifications (PWA service worker) — Phase 5
+    53→- ❌ Real messaging inbox للـ host — Phase 5
+    54→- ❌ Email notifications — PROD-ONLY
+    55→- ❌ Video streaming
+    56→- ❌ Voice chat
+    57→
+    58→---
+    59→
+    60→## 🛠️ الجزء الأول: إكمال تفاصيل 2A/2B
+    61→
+    62→### 1. ApplicationCTA (تحقّق + إكمال)
+    63→
+    64→في `src/components/lamma/gatherings/detail/ApplicationCTA.tsx`:
+    65→
+    66→```tsx
+    67→'use client';
+    68→
+    69→import { useAuthStore } from '@/lib/auth-store';
+    70→import { useApplicationsStore } from '@/lib/applications-store';
+    71→import { useTranslations } from 'next-intl';
+    72→import { useRouter } from '@/i18n/routing';
+    73→import { Button } from '@/components/ui/button';
+    74→import { Card } from '@/components/ui/card';
+    75→import { StatusBadge } from '@/components/lamma/applications/StatusBadge';
+    76→import { MatchScoreRing } from '@/components/lamma/matching/MatchScoreRing';
+    77→import { computeMatchScore } from '@/lib/matching/engine';
+    78→import { gatherings } from '@/data/gatherings';
+    79→import { localized } from '@/lib/use-localized';
+    80→import { CheckCircle2, LogIn, Clock } from 'lucide-react';
+    81→import { formatRelative } from '@/lib/format';
+    82→
+    83→interface Props {
+    84→  gathering: typeof gatherings[number];
+    85→}
+    86→
+    87→export function ApplicationCTA({ gathering }: Props) {
+    88→  const t = useTranslations('gatherings');
+    89→  const tMatching = useTranslations('matching');
+    90→  const { user, isAuthenticated, hasHydrated } = useAuthStore();
+    91→  const applications = useApplicationsStore();
+    92→  const router = useRouter();
+    93→  
+    94→  const existingApp = user
+    95→    ? applications.getByUser(user.id).find(a => a.gatheringSlug === gathering.slug)
+    96→    : undefined;
+    97→  
+    98→  const isClosed = gathering.status === 'APPLICATIONS_CLOSED' || 
+    99→    (gathering.applicationsCloseAt && new Date(gathering.applicationsCloseAt) < new Date());
+   100→  
+   101→  const matchScore = hasHydrated && isAuthenticated && user
+   102→    ? computeMatchScore(user, gathering)
+   103→    : null;
+   104→  
+   105→  const handleApply = () => {
+   106→    if (!isAuthenticated) {
+   107→      window.dispatchEvent(new CustomEvent('lamma:show-login'));
+   108→      return;
+   109→    }
+   110→    router.push(`/gatherings/apply/${gathering.slug}`);
+   111→  };
+   112→  
+   113→  return (
+   114→    <Card className="p-6 bg-paper border-clay/20 sticky top-24">
+   115→      <div className="flex items-center justify-between mb-4">
+   116→        <div>
+   117→          <p className="text-sm text-stone">{t('price')}</p>
+   118→          <p className="text-3xl font-display tabular">
+   119→            {gathering.isFree ? t('free') : `${gathering.priceKwd.toFixed(3)} KWD`}
+   120→          </p>
+   121→        </div>
+   122→        <StatusBadge status={gathering.status} />
+   123→      </div>
+   124→      
+   125→      {/* Match prediction (for logged-in users only) */}
+   126→      {hasHydrated && isAuthenticated && matchScore !== null && !existingApp && !isClosed && (
+   127→        <div className="mb-4 p-4 bg-sand rounded-lg">
+   128→          <p className="text-xs text-stone mb-2 text-center">{tMatching('yourMatchScore')}</p>
+   129→          <div className="flex items-center justify-center my-2">
+   130→            <MatchScoreRing score={matchScore} size="md" showLabel={false} />
+   131→          </div>
+   132→          <p className="text-xs text-stone text-center">{tMatching('matchScoreHint')}</p>
+   133→        </div>
+   134→      )}
+   135→      
+   136→      {existingApp ? (
+   137→        <div className="space-y-3">
+   138→          <div className="bg-success/10 border border-success/20 rounded-lg p-3 flex items-center gap-2">
+   139→            <CheckCircle2 className="size-5 text-success flex-shrink-0" />
+   140→            <div>
+   141→              <p className="text-sm font-medium text-success">{t('alreadyApplied')}</p>
+   142→              <p className="text-xs text-stone">{t('applicationId')}: {existingApp.id.slice(-8)}</p>
+   143→            </div>
+   144→          </div>
+   145→          <div className="flex items-center justify-between">
+   146→            <span className="text-sm text-stone">{t('currentStatus')}</span>
+   147→            <StatusBadge status={existingApp.status} />
+   148→          </div>
+   149→          <Button variant="outline" className="w-full" onClick={() => router.push('/dashboard/applications')}>
+   150→            {t('viewInDashboard')}
+   151→          </Button>
+   152→        </div>
+   153→      ) : isClosed ? (
+   154→        <div className="space-y-3">
+   155→          <div className="bg-stone/10 border border-stone/20 rounded-lg p-3">
+   156→            <p className="text-sm text-stone">{t('applicationsClosed')}</p>
+   157→          </div>
+   158→          <Button disabled className="w-full bg-stone">{t('closed')}</Button>
+   159→        </div>
+   160→      ) : (
+   161→        <>
+   162→          <Button size="lg" className="w-full bg-clay hover:bg-clay/90 text-paper" onClick={handleApply}>
+   163→            {isAuthenticated ? t('applyCta') : (
+   164→              <span className="flex items-center gap-2">
+   165→                <LogIn className="size-4" />
+   166→                {t('loginToApply')}
+   167→              </span>
+   168→            )}
+   169→          </Button>
+   170→          <p className="text-xs text-stone text-center mt-3">{t('applyNote')}</p>
+   171→          {gathering.applicationsCloseAt && (
+   172→            <p className="text-xs text-saffron text-center mt-2 flex items-center justify-center gap-1">
+   173→              <Clock className="size-3" />
+   174→              {t('applicationsCloseIn', { time: formatRelative(gathering.applicationsCloseAt, 'ar') })}
+   175→            </p>
+   176→          )}
+   177→        </>
+   178→      )}
+   179→    </Card>
+   180→  );
+   181→}
+   182→```
+   183→
+   184→### 2. CapacityCard (تحقّق + إكمال)
+   185→
+   186→في `src/components/lamma/gatherings/detail/CapacityCard.tsx`:
+   187→
+   188→```tsx
+   189→import { Card } from '@/components/ui/card';
+   190→import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+   191→import { useTranslations } from 'next-intl';
+   192→import { Users, Clock, ListPlus } from 'lucide-react';
+   193→import { localized } from '@/lib/use-localized';
+   194→
+   195→interface Props {
+   196→  capacityMax: number;
+   197→  capacityMin: number;
+   198→  approvedCount: number;
+   199→  pendingCount: number;
+   200→  waitlistedCount: number;
+   201→  approvedAttendees: Array<{ id: string; name: { ar: string; en: string }; avatarUrl?: string }>;
+   202→}
+   203→
+   204→export function CapacityCard({ capacityMax, capacityMin, approvedCount, pendingCount, waitlistedCount, approvedAttendees }: Props) {
+   205→  const t = useTranslations('gatherings');
+   206→  const fillPercent = Math.round((approvedCount / capacityMax) * 100);
+   207→  const isFull = approvedCount >= capacityMax;
+   208→  
+   209→  return (
+   210→    <Card className="p-6">
+   211→      <div className="flex items-center gap-2 mb-4">
+   212→        <Users className="size-5 text-teal" />
+   213→        <h3 className="font-display text-lg">{t('capacity')}</h3>
+   214→      </div>
+   215→      
+   216→      <div className="space-y-3">
+   217→        {/* Approved */}
+   218→        <div>
+   219→          <div className="flex justify-between text-sm mb-1">
+   220→            <span className="flex items-center gap-1.5">
+   221→              <span className="size-2 rounded-full bg-success" />
+   222→              {t('approved')}
+   223→            </span>
+   224→            <span className="tabular">{approvedCount}/{capacityMax}</span>
+   225→          </div>
+   226→          <div className="h-2 bg-sand rounded-full overflow-hidden">
+   227→            <div className="h-full bg-success transition-all duration-500" style={{ width: `${fillPercent}%` }} />
+   228→          </div>
+   229→        </div>
+   230→        
+   231→        {/* Pending */}
+   232→        {pendingCount > 0 && (
+   233→          <div>
+   234→            <div className="flex justify-between text-sm mb-1">
+   235→              <span className="flex items-center gap-1.5">
+   236→                <Clock className="size-3 text-saffron" />
+   237→                {t('pending')}
+   238→              </span>
+   239→              <span className="tabular text-saffron">{pendingCount}</span>
+   240→            </div>
+   241→            <div className="h-1.5 bg-sand rounded-full overflow-hidden">
+   242→              <div className="h-full bg-saffron/60" style={{ width: `${Math.min(100, (pendingCount / capacityMax) * 100)}%` }} />
+   243→            </div>
+   244→          </div>
+   245→        )}
+   246→        
+   247→        {/* Waitlisted */}
+   248→        {waitlistedCount > 0 && (
+   249→          <div>
+   250→            <div className="flex justify-between text-sm mb-1">
+   251→              <span className="flex items-center gap-1.5">
+   252→                <ListPlus className="size-3 text-stone" />
+   253→                {t('waitlisted')}
+   254→              </span>
+   255→              <span className="tabular text-stone">{waitlistedCount}</span>
+   256→            </div>
+   257→          </div>
+   258→        )}
+   259→        
+   260→        {isFull && (
+   261→          <p className="text-xs text-saffron mt-2">{t('fullyBooked')}</p>
+   262→        )}
+   263→      </div>
+   264→      
+   265→      {/* Avatar grid */}
+   266→      {approvedAttendees.length > 0 && (
+   267→        <div className="mt-5 pt-4 border-t border-stone/10">
+   268→          <p className="text-xs text-stone mb-3">{t('whosComing')}</p>
+   269→          <div className="flex flex-wrap gap-2">
+   270→            {approvedAttendees.slice(0, 8).map(attendee => (
+   271→              <Avatar key={attendee.id} className="size-8 ring-2 ring-paper">
+   272→                {attendee.avatarUrl ? <AvatarImage src={attendee.avatarUrl} alt="" /> : null}
+   273→                <AvatarFallback className="text-xs">{localized(attendee.name).charAt(0)}</AvatarFallback>
+   274→              </Avatar>
+   275→            ))}
+   276→            {approvedCount > 8 && (
+   277→              <div className="size-8 rounded-full bg-sand flex items-center justify-center text-xs text-stone">
+   278→                +{approvedCount - 8}
+   279→              </div>
+   280→            )}
+   281→          </div>
+   282→        </div>
+   283→      )}
+   284→    </Card>
+   285→  );
+   286→}
+   287→```
+   288→
+   289→### 3. LocationCard (تحقّق + إكمال)
+   290→
+   291→في `src/components/lamma/gatherings/detail/LocationCard.tsx`:
+   292→
+   293→```tsx
+   294→import { Card } from '@/components/ui/card';
+   295→import { MapPin, Navigation, Info } from 'lucide-react';
+   296→import { useTranslations } from 'next-intl';
+   297→import { localized } from '@/lib/use-localized';
+   298→
+   299→interface Props {
+   300→  venueName: { ar: string; en: string };
+   301→  venueAddress: { ar: string; en: string };
+   302→  venueNotes?: { ar?: string; en?: string };
+   303→  venueLat?: number;
+   304→  venueLng?: number;
+   305→  isLocationRevealed: boolean;
+   306→}
+   307→
+   308→export function LocationCard({ venueName, venueAddress, venueNotes, venueLat, venueLng, isLocationRevealed }: Props) {
+   309→  const t = useTranslations('gatherings');
+   310→  
+   311→  return (
+   312→    <Card className="p-6">
+   313→      <div className="flex items-center gap-2 mb-4">
+   314→        <MapPin className="size-5 text-clay" />
+   315→        <h3 className="font-display text-lg">{t('location')}</h3>
+   316→      </div>
+   317→      
+   318→      {/* SVG Map */}
+   319→      <div className="aspect-[4/3] bg-sand rounded-lg overflow-hidden mb-4 relative">
+   320→        {isLocationRevealed ? (
+   321→          <svg viewBox="0 0 400 300" className="w-full h-full">
+   322→            <defs>
+   323→              <pattern id="mapGrid" width="20" height="20" patternUnits="userSpaceOnUse">
+   324→                <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#8B8478" strokeWidth="0.5" opacity="0.3"/>
+   325→              </pattern>
+   326→            </defs>
+   327→            <rect width="400" height="300" fill="#F4EDE0"/>
+   328→            <rect width="400" height="300" fill="url(#mapGrid)"/>
+   329→            {/* Stylized streets */}
+   330→            <path d="M 50 150 Q 200 100, 350 200" stroke="#8B8478" strokeWidth="1.5" fill="none" opacity="0.5"/>
+   331→            <path d="M 100 50 L 100 250" stroke="#8B8478" strokeWidth="1" fill="none" opacity="0.4"/>
+   332→            <path d="M 250 30 L 250 270" stroke="#8B8478" strokeWidth="1" fill="none" opacity="0.4"/>
+   333→            <path d="M 30 220 L 370 220" stroke="#8B8478" strokeWidth="1" fill="none" opacity="0.4"/>
+   334→            {/* Buildings */}
+   335→            <rect x="120" y="80" width="40" height="50" fill="#8B8478" opacity="0.15" rx="2"/>
+   336→            <rect x="180" y="170" width="50" height="40" fill="#8B8478" opacity="0.15" rx="2"/>
+   337→            <rect x="270" y="60" width="35" height="45" fill="#8B8478" opacity="0.15" rx="2"/>
+   338→            {/* Pin */}
+   339→            <g transform="translate(200, 150)">
+   340→              <circle r="24" fill="#B85C3E" opacity="0.15">
+   341→                <animate attributeName="r" values="24;32;24" dur="2s" repeatCount="indefinite"/>
+   342→                <animate attributeName="opacity" values="0.15;0;0.15" dur="2s" repeatCount="indefinite"/>
+   343→              </circle>
+   344→              <circle r="12" fill="#B85C3E"/>
+   345→              <circle r="4" fill="#FBF8F2"/>
+   346→            </g>
+   347→          </svg>
+   348→        ) : (
+   349→          <div className="w-full h-full flex flex-col items-center justify-center bg-sand">
+   350→            <MapPin className="size-12 text-stone/40 mb-2" />
+   351→            <p className="text-sm text-stone">{t('locationHiddenUntilApproved')}</p>
+   352→          </div>
+   353→        )}
+   354→        <div className="absolute bottom-2 end-2 text-xs text-stone bg-paper/80 px-2 py-1 rounded">
+   355→          {t('mapPreview')}
+   356→        </div>
+   357→      </div>
+   358→      
+   359→      <h4 className="font-medium">{localized(venueName)}</h4>
+   360→      <p className="text-sm text-stone mt-1 flex items-start gap-1.5">
+   361→        <Navigation className="size-3.5 mt-0.5 flex-shrink-0" />
+   362→        {localized(venueAddress)}
+   363→      </p>
+   364→      {venueNotes && (venueNotes.ar || venueNotes.en) && (
+   365→        <div className="mt-3 p-3 bg-sand/50 rounded-lg flex items-start gap-2">
+   366→          <Info className="size-3.5 text-saffron mt-0.5 flex-shrink-0" />
+   367→          <p className="text-xs text-stone">{localized(venueNotes)}</p>
+   368→        </div>
+   369→      )}
+   370→      {!isLocationRevealed && (
+   371→        <p className="text-xs text-saffron mt-2 italic">{t('locationHiddenHint')}</p>
+   372→      )}
+   373→    </Card>
+   374→  );
+   375→}
+   376→```
+   377→
+   378→### 4. ApplyForm (تحقّق + إكمال)
+   379→
+   380→تأكّد من أن `src/components/lamma/applications/ApplyForm.tsx` يحتوي على 4 خطوات كاملة:
+   381→- **Step 1 (About):** motivation (textarea, min 50 chars, counter) + background (optional)
+   382→- **Step 2 (Custom questions):** render `gathering.applicationQuestions` dynamically
+   383→- **Step 3 (Logistics):** dietary restrictions (chips) + accessibility needs + emergency contact
+   384→- **Step 4 (Review):** summary + match score (real via MatchScoreRing) + declaration (native checkbox) + submit
+   385→
+   386→استخدم `useApplicationForm` hook الموجود. تأكّد من validation في كل خطوة.
+   387→
+   388→### 5. Cancel Confirmation
+   389→
+   390→في `src/components/lamma/dashboard/ApplicationsList.tsx`:
+   391→- استبدل native `confirm()` بـ dialog أنيق
+   392→- استخدم shadcn `Dialog` (أو native `<dialog>` إن لزم)
+   393→- العنوان: "هل أنت متأكد؟"
+   394→- الوصف: "لا يمكن التراجع عن هذا الإجراء..."
+   395→- زرّان: "تراجع" (ghost) + "نعم، ألغِ الطلب" (destructive)
+   396→- بعد الإلغاء: toast "تم إلغاء الطلب"
+   397→
+   398→### 6. NotificationBell في SiteHeader
+   399→
+   400→في `src/components/lamma/SiteHeader.tsx`، أضف `NotificationBell` للـ hosts:
+   401→
+   402→```tsx
+   403→import { NotificationBell } from '@/components/lamma/auth/NotificationBell';
+   404→
+   405→// في JSX، بين LocaleSwitcher و AccountDropdown:
+   406→{hasHydrated && isAuthenticated && user && isUserHost(user.id) && (
+   407→  <NotificationBell />
+   408→)}
+   409→```
+   410→
+   411→`NotificationBell.tsx`:
+   412→```tsx
+   413→'use client';
+   414→
+   415→import { useNotificationsStore } from '@/lib/notifications-store';
+   416→import { Bell } from 'lucide-react';
+   417→import { Button } from '@/components/ui/button';
+   418→import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuLabel } from '@/components/ui/dropdown-menu';
+   419→import { useTranslations } from 'next-intl';
+   420→import { localized } from '@/lib/use-localized';
+   421→import { formatRelative } from '@/lib/format';
+   422→
+   423→export function NotificationBell() {
+   424→  const t = useTranslations('notifications');
+   425→  const { notifications, unreadCount, markAllRead, markRead } = useNotificationsStore();
+   426→  
+   427→  return (
+   428→    <DropdownMenu>
+   429→      <DropdownMenuTrigger asChild>
+   430→        <Button variant="ghost" size="icon" className="relative">
+   431→          <Bell className="size-5" />
+   432→          {unreadCount > 0 && (
+   433→            <span className="absolute -top-0.5 -end-0.5 size-4 bg-clay text-paper text-[10px] rounded-full flex items-center justify-center tabular">
+   434→              {unreadCount > 9 ? '9+' : unreadCount}
+   435→            </span>
+   436→          )}
+   437→        </Button>
+   438→      </DropdownMenuTrigger>
+   439→      <DropdownMenuContent align="end" className="w-80">
+   440→        <div className="flex items-center justify-between p-2">
+   441→          <span className="text-sm font-medium">{t('title')}</span>
+   442→          {unreadCount > 0 && (
+   443→            <button onClick={markAllRead} className="text-xs text-clay hover:underline">
+   444→              {t('markAllRead')}
+   445→            </button>
+   446→          )}
+   447→        </div>
+   448→        <DropdownMenuSeparator />
+   449→        {notifications.length === 0 ? (
+   450→          <div className="p-4 text-center text-sm text-stone">{t('empty')}</div>
+   451→        ) : (
+   452→          notifications.slice(0, 5).map(notif => (
+   453→            <DropdownMenuItem
+   454→              key={notif.id}
+   455→              onClick={() => markRead(notif.id)}
+   456→              className="flex flex-col items-start p-3 cursor-pointer"
+   457→            >
+   458→              <div className="flex items-center gap-2 w-full">
+   459→                {!notif.isRead && <span className="size-2 bg-clay rounded-full flex-shrink-0" />}
+   460→                <span className="text-sm font-medium flex-1">{localized(notif.title)}</span>
+   461→                <span className="text-xs text-stone">{formatRelative(notif.createdAt, 'ar')}</span>
+   462→              </div>
+   463→              <p className="text-xs text-stone mt-1">{localized(notif.body)}</p>
+   464→            </DropdownMenuItem>
+   465→          ))
+   466→        )}
+   467→      </DropdownMenuContent>
+   468→    </DropdownMenu>
+   469→  );
+   470→}
+   471→```
+   472→
+   473→### 7. ApplicationDetailDialog
+   474→
+   475→تأكّق من أن `src/components/lamma/dashboard/ApplicationsList.tsx` يحتوي على Dialog كامل يعرض:
+   476→- Applicant info (avatar + name + email)
+   477→- For gathering (title)
+   478→- Match score (MatchScoreRing)
+   479→- Motivation (full text)
+   480→- Background (full text)
+   481→- Custom answers (label + value)
+   482→- Logistics (dietary, accessibility)
+   483→- Status timeline (vertical with icons)
+   484→- Cancel button (at bottom, with confirmation)
+   485→
+   486→---
+   487→
+   488→## 🚀 الجزء الثاني: WebSocket Mini-Service
+   489→
+   490→### إنشاء mini-service
+   491→
+   492→أنشئ `mini-services/live-companion/`:
+   493→
+   494→```
+   495→mini-services/live-companion/
+   496→├── package.json
+   497→├── tsconfig.json
+   498→└── index.ts
+   499→```
+   500→
+   501→#### `mini-services/live-companion/package.json`
+   502→
+   503→```json
+   504→{
+   505→  "name": "lamma-live-companion",
+   506→  "version": "1.0.0",
+   507→  "private": true,
+   508→  "scripts": {
+   509→    "dev": "bun --hot index.ts",
+   510→    "start": "bun index.ts"
+   511→  },
+   512→  "dependencies": {
+   513→    "socket.io": "^4.7.0",
+   514→    "@types/socket.io": "^3.0.0"
+   515→  }
+   516→}
+   517→```
+   518→
+   519→#### `mini-services/live-companion/index.ts`
+   520→
+   521→```typescript
+   522→import { createServer } from 'http';
+   523→import { Server } from 'socket.io';
+   524→
+   525→const PORT = 3003;
+   526→
+   527→const httpServer = createServer();
+   528→const io = new Server(httpServer, {
+   529→  cors: {
+   530→    origin: '*', // PROD-ONLY: restrict to lamma.kw
+   531→    methods: ['GET', 'POST'],
+   532→  },
+   533→  // مهم: path '/' لأن Caddy سيتعامل مع التوجيه
+   534→  path: '/',
+   535→});
+   536→
+   537→// ============================================
+   538→// State (in-memory — PROD-ONLY: استخدم Redis)
+   539→// ============================================
+   540→
+   541→interface LiveAttendee {
+   542→  socketId: string;
+   543→  userId: string;
+   544→  userName: string;
+   545→  avatarUrl?: string;
+   546→  joinedAt: number;
+   547→  isHost: boolean;
+   548→}
+   549→
+   550→interface LiveMessage {
+   551→  id: string;
+   552→  gatheringSlug: string;
+   553→  userId: string;
+   554→  userName: string;
+   555→  avatarUrl?: string;
+   556→  content: string;
+   557→  timestamp: number;
+   558→  isSystem: boolean;
+   559→}
+   560→
+   561→interface LiveMoment {
+   562→  id: string;
+   563→  gatheringSlug: string;
+   564→  userId: string;
+   565→  userName: string;
+   566→  type: 'highlight' | 'quote' | 'photo-placeholder';
+   567→  content: string;
+   568→  hearts: number;
+   569→  timestamp: number;
+   570→}
+   571→
+   572→// Per-gathering state
+   573→const gatheringState = new Map<string, {
+   574→  attendees: Map<string, LiveAttendee>; // userId → attendee
+   575→  messages: LiveMessage[];
+   576→  moments: LiveMoment[];
+   577→}>();
+   578→
+   579→function getGathering(slug: string) {
+   580→  if (!gatheringState.has(slug)) {
+   581→    gatheringState.set(slug, {
+   582→      attendees: new Map(),
+   583→      messages: [],
+   584→      moments: [],
+   585→    });
+   586→  }
+   587→  return gatheringState.get(slug)!;
+   588→}
+   589→
+   590→// ============================================
+   591→// Mock bot attendees (for demo)
+   592→// ============================================
+   593→
+   594→const MOCK_BOTS = [
+   595→  { userId: 'bot-1', userName: 'محمد', avatarUrl: '/images/hosts/mohammed_poet.jpg' },
+   596→  { userId: 'bot-2', userName: 'فاطمة', avatarUrl: '/images/hosts/fatima_literary.jpg' },
+   597→  { userId: 'bot-3', userName: 'عبدالله', avatarUrl: '/images/hosts/abdullah_kuwaiti_historian.jpg' },
+   598→];
+   599→
+   600→const MOCK_MESSAGES = [
+   601→  'وصلت قبل قليل، المكان رائع!',
+   602→  'الجو حميمي جداً، أحببت هذا',
+   603→  'هل أحد يعرف إن كان هناك موقف سيارات قريب؟',
+   604→  'الضيافة ممتازة، شكراً لكم',
+   605→  'هذه اللمة مختلفة فعلاً',
+   606→  'صاحب التجمع شخص مبدع',
+   607→];
+   608→
+   609→const MOCK_MOMENTS = [
+   610→  { type: 'highlight' as const, content: 'لحظة الصمت الجماعي عند قراءة القصيدة' },
+   611→  { type: 'quote' as const, content: 'الكويت ليست مكاناً، الكويت حكاية' },
+   612→  { type: 'highlight' as const, content: 'النقاش حول ذاكرة المكان كان عميقاً' },
+   613→];
+   614→
+   615→function seedMockActivity(slug: string) {
+   616→  const state = getGathering(slug);
+   617→  
+   618→  // Add 2 mock attendees
+   619→  MOCK_BOTS.slice(0, 2).forEach((bot, i) => {
+   620→    state.attendees.set(bot.userId, {
+   621→      socketId: `bot-${i}`,
+   622→      userId: bot.userId,
+   623→      userName: bot.userName,
+   624→      avatarUrl: bot.avatarUrl,
+   625→      joinedAt: Date.now() - (i + 1) * 60000,
+   626→      isHost: false,
+   627→    });
+   628→  });
+   629→  
+   630→  // Add 2-3 mock messages
+   631→  for (let i = 0; i < 3; i++) {
+   632→    const bot = MOCK_BOTS[i % MOCK_BOTS.length];
+   633→    state.messages.push({
+   634→      id: `mock-msg-${i}-${Date.now()}`,
+   635→      gatheringSlug: slug,
+   636→      userId: bot.userId,
+   637→      userName: bot.userName,
+   638→      avatarUrl: bot.avatarUrl,
+   639→      content: MOCK_MESSAGES[i % MOCK_MESSAGES.length],
+   640→      timestamp: Date.now() - (3 - i) * 120000,
+   641→      isSystem: false,
+   642→    });
+   643→  }
+   644→  
+   645→  // Add 1 mock moment
+   646→  const mockMoment = MOCK_MOMENTS[0];
+   647→  state.moments.push({
+   648→    id: `mock-moment-${Date.now()}`,
+   649→    gatheringSlug: slug,
+   650→    userId: MOCK_BOTS[0].userId,
+   651→    userName: MOCK_BOTS[0].userName,
+   652→    type: mockMoment.type,
+   653→    content: mockMoment.content,
+   654→    hearts: Math.floor(Math.random() * 5) + 1,
+   655→    timestamp: Date.now() - 300000,
+   656→  });
+   657→}
+   658→
+   659→// ============================================
+   660→// Bot activity simulator
+   661→// ============================================
+   662→
+   663→function startBotSimulation(slug: string) {
+   664→  const state = getGathering(slug);
+   665→  
+   666→  // Every 30-90 seconds, post a mock message
+   667→  const interval = setInterval(() => {
+   668→    if (state.attendees.size < 3) return;
+   669→    
+   670→    const bot = MOCK_BOTS[Math.floor(Math.random() * MOCK_BOTS.length)];
+   671→    const msg = MOCK_MESSAGES[Math.floor(Math.random() * MOCK_MESSAGES.length)];
+   672→    
+   673→    const newMsg: LiveMessage = {
+   674→      id: `bot-msg-${Date.now()}`,
+   675→      gatheringSlug: slug,
+   676→      userId: bot.userId,
+   677→      userName: bot.userName,
+   678→      avatarUrl: bot.avatarUrl,
+   679→      content: msg,
+   680→      timestamp: Date.now(),
+   681→      isSystem: false,
+   682→    };
+   683→    
+   684→    state.messages.push(newMsg);
+   685→    io.to(`gathering:${slug}`).emit('message:new', newMsg);
+   686→  }, 45000 + Math.random() * 45000);
+   687→  
+   688→  return interval;
+   689→}
+   690→
+   691→// ============================================
+   692→// Socket.io event handlers
+   693→// ============================================
+   694→
+   695→io.on('connection', (socket) => {
+   696→  console.log(`[Live] Connected: ${socket.id}`);
+   697→  
+   698→  socket.on('gathering:join', (payload: {
+   699→    gatheringSlug: string;
+   700→    userId: string;
+   701→    userName: string;
+   702→    avatarUrl?: string;
+   703→    isHost: boolean;
+   704→  }) => {
+   705→    const { gatheringSlug, userId, userName, avatarUrl, isHost } = payload;
+   706→    
+   707→    // Seed mock activity on first join
+   708→    const state = getGathering(gatheringSlug);
+   709→    if (state.attendees.size === 0 && state.messages.length === 0) {
+   710→      seedMockActivity(gatheringSlug);
+   711→      startBotSimulation(gatheringSlug);
+   712→    }
+   713→    
+   714→    // Add attendee
+   715→    state.attendees.set(userId, {
+   716→      socketId: socket.id,
+   717→      userId,
+   718→      userName,
+   719→      avatarUrl,
+   720→      joinedAt: Date.now(),
+   721→      isHost,
+   722→    });
+   723→    
+   724→    // Join socket room
+   725→    socket.join(`gathering:${gatheringSlug}`);
+   726→    socket.data.gatheringSlug = gatheringSlug;
+   727→    socket.data.userId = userId;
+   728→    
+   729→    // System message
+   730→    const sysMsg: LiveMessage = {
+   731→      id: `sys-${Date.now()}`,
+   732→      gatheringSlug,
+   733→      userId: 'system',
+   734→      userName: 'النظام',
+   735→      content: `${userName} انضم لللمة`,
+   736→      timestamp: Date.now(),
+   737→      isSystem: true,
+   738→    };
+   739→    state.messages.push(sysMsg);
+   740→    
+   741→    // Send current state to the new joiner
+   742→    socket.emit('gathering:state', {
+   743→      attendees: Array.from(state.attendees.values()),
+   744→      messages: state.messages.slice(-50), // last 50
+   745→      moments: state.moments,
+   746→    });
+   747→    
+   748→    // Notify others
+   749→    socket.to(`gathering:${gatheringSlug}`).emit('message:new', sysMsg);
+   750→    socket.to(`gathering:${gatheringSlug}`).emit('attendee:join', state.attendees.get(userId));
+   751→  });
+   752→  
+   753→  socket.on('message:send', (payload: { content: string }) => {
+   754→    const { gatheringSlug, userId } = socket.data;
+   755→    if (!gatheringSlug || !userId) return;
+   756→    
+   757→    const state = getGathering(gatheringSlug);
+   758→    const attendee = state.attendees.get(userId);
+   759→    if (!attendee) return;
+   760→    
+   761→    const msg: LiveMessage = {
+   762→      id: `msg-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+   763→      gatheringSlug,
+   764→      userId,
+   765→      userName: attendee.userName,
+   766→      avatarUrl: attendee.avatarUrl,
+   767→      content: payload.content.slice(0, 500), // limit
+   768→      timestamp: Date.now(),
+   769→      isSystem: false,
+   770→    };
+   771→    
+   772→    state.messages.push(msg);
+   773→    io.to(`gathering:${gatheringSlug}`).emit('message:new', msg);
+   774→  });
+   775→  
+   776→  socket.on('moment:create', (payload: { type: 'highlight' | 'quote'; content: string }) => {
+   777→    const { gatheringSlug, userId } = socket.data;
+   778→    if (!gatheringSlug || !userId) return;
+   779→    
+   780→    const state = getGathering(gatheringSlug);
+   781→    const attendee = state.attendees.get(userId);
+   782→    if (!attendee) return;
+   783→    
+   784→    const moment: LiveMoment = {
+   785→      id: `moment-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+   786→      gatheringSlug,
+   787→      userId,
+   788→      userName: attendee.userName,
+   789→      type: payload.type,
+   790→      content: payload.content.slice(0, 200),
+   791→      hearts: 0,
+   792→      timestamp: Date.now(),
+   793→    };
+   794→    
+   795→    state.moments.unshift(moment); // add to top
+   796→    if (state.moments.length > 20) state.moments.pop();
+   797→    
+   798→    io.to(`gathering:${gatheringSlug}`).emit('moment:new', moment);
+   799→  });
+   800→  
+   801→  socket.on('moment:heart', (payload: { momentId: string }) => {
+   802→    const { gatheringSlug } = socket.data;
+   803→    if (!gatheringSlug) return;
+   804→    
+   805→    const state = getGathering(gatheringSlug);
+   806→    const moment = state.moments.find(m => m.id === payload.momentId);
+   807→    if (moment) {
+   808→      moment.hearts++;
+   809→      io.to(`gathering:${gatheringSlug}`).emit('moment:hearted', { momentId: moment.id, hearts: moment.hearts });
+   810→    }
+   811→  });
+   812→  
+   813→  socket.on('typing:start', () => {
+   814→    const { gatheringSlug, userId } = socket.data;
+   815→    if (!gatheringSlug || !userId) return;
+   816→    const state = getGathering(gatheringSlug);
+   817→    const attendee = state.attendees.get(userId);
+   818→    if (attendee) {
+   819→      socket.to(`gathering:${gatheringSlug}`).emit('typing:start', { userId, userName: attendee.userName });
+   820→    }
+   821→  });
+   822→  
+   823→  socket.on('typing:stop', () => {
+   824→    const { gatheringSlug, userId } = socket.data;
+   825→    if (!gatheringSlug || !userId) return;
+   826→    socket.to(`gathering:${gatheringSlug}`).emit('typing:stop', { userId });
+   827→  });
+   828→  
+   829→  socket.on('disconnect', () => {
+   830→    const { gatheringSlug, userId } = socket.data;
+   831→    if (!gatheringSlug || !userId) return;
+   832→    
+   833→    const state = getGathering(gatheringSlug);
+   834→    const attendee = state.attendees.get(userId);
+   835→    state.attendees.delete(userId);
+   836→    
+   837→    if (attendee) {
+   838→      const sysMsg: LiveMessage = {
+   839→        id: `sys-${Date.now()}`,
+   840→        gatheringSlug,
+   841→        userId: 'system',
+   842→        userName: 'النظام',
+   843→        content: `${attendee.userName} غادر اللمة`,
+   844→        timestamp: Date.now(),
+   845→        isSystem: true,
+   846→      };
+   847→      state.messages.push(sysMsg);
+   848→      socket.to(`gathering:${gatheringSlug}`).emit('message:new', sysMsg);
+   849→      socket.to(`gathering:${gatheringSlug}`).emit('attendee:leave', { userId });
+   850→    }
+   851→  });
+   852→});
+   853→
+   854→httpServer.listen(PORT, () => {
+   855→  console.log(`[Lamma Live Companion] Running on port ${PORT}`);
+   856→});
+   857→```
+   858→
+   859→### تشغيل mini-service
+   860→
+   861→في `package.json` الرئيسي، أضف:
+   862→
+   863→```json
+   864→"scripts": {
+   865→  "live:start": "cd mini-services/live-companion && bun run dev",
+   866→  "live:install": "cd mini-services/live-companion && bun install"
+   867→}
+   868→```
+   869→
+   870→ثبّت socket.io في mini-service:
+   871→
+   872→```bash
+   873→cd mini-services/live-companion
+   874→bun install
+   875→bun run dev &
+   876→```
+   877→
+   878→تأكّد من أنه يعمل على port 3003.
+   879→
+   880→---
+   881→
+   882→## 📄 صفحة Live Companion
+   883→
+   884→### Route: `/[locale]/gatherings/[slug]/live`
+   885→
+   886→```tsx
+   887→// src/app/[locale]/gatherings/[slug]/live/page.tsx
+   888→import { notFound } from 'next/navigation';
+   889→import { gatherings } from '@/data/gatherings';
+   890→import { LiveCompanion } from '@/components/lamma/live/LiveCompanion';
+   891→import { RequireAuth } from '@/components/lamma/auth/RequireAuth';
+   892→
+   893→export default async function LivePage({ params }: { params: { locale: string; slug: string } }) {
+   894→  const gathering = gatherings.find(g => g.slug === params.slug);
+   895→  if (!gathering) notFound();
+   896→  
+   897→  return (
+   898→    <RequireAuth>
+   899→      <LiveCompanion gathering={gathering} />
+   900→    </RequireAuth>
+   901→  );
+   902→}
+   903→```
+   904→
+   905→### LiveCompanion component
+   906→
+   907→`src/components/lamma/live/LiveCompanion.tsx`:
+   908→
+   909→```tsx
+   910→'use client';
+   911→
+   912→import { useEffect, useState, useRef } from 'react';
+   913→import { io, Socket } from 'socket.io-client';
+   914→import { useAuthStore } from '@/lib/auth-store';
+   915→import { useTranslations } from 'next-intl';
+   916→import { Card } from '@/components/ui/card';
+   917→import { Button } from '@/components/ui/button';
+   918→import { Input } from '@/components/ui/input';
+   919→import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+   920→import { Send, Heart, Sparkles, Users, Clock, MessageSquare, LogOut, Quote, Star } from 'lucide-react';
+   921→import { PrayerTimeBadge } from '@/components/lamma/PrayerTimeBadge';
+   922→import { localized } from '@/lib/use-localized';
+   923→import { cn } from '@/lib/utils';
+   924→import Link from 'next/link';
+   925→
+   926→interface Attendee {
+   927→  socketId: string;
+   928→  userId: string;
+   929→  userName: string;
+   930→  avatarUrl?: string;
+   931→  joinedAt: number;
+   932→  isHost: boolean;
+   933→}
+   934→
+   935→interface Message {
+   936→  id: string;
+   937→  userId: string;
+   938→  userName: string;
+   939→  avatarUrl?: string;
+   940→  content: string;
+   941→  timestamp: number;
+   942→  isSystem: boolean;
+   943→}
+   944→
+   945→interface Moment {
+   946→  id: string;
+   947→  userId: string;
+   948→  userName: string;
+   949→  type: 'highlight' | 'quote' | 'photo-placeholder';
+   950→  content: string;
+   951→  hearts: number;
+   952→  timestamp: number;
+   953→}
+   954→
+   955→interface Props {
+   956→  gathering: any; // Gathering type
+   957→}
+   958→
+   959→export function LiveCompanion({ gathering }: Props) {
+   960→  const t = useTranslations('live');
+   961→  const { user } = useAuthStore();
+   962→  
+   963→  const [socket, setSocket] = useState<Socket | null>(null);
+   964→  const [connected, setConnected] = useState(false);
+   965→  const [attendees, setAttendees] = useState<Attendee[]>([]);
+   966→  const [messages, setMessages] = useState<Message[]>([]);
+   967→  const [moments, setMoments] = useState<Moment[]>([]);
+   968→  const [input, setInput] = useState('');
+   969→  const [typingUsers, setTypingUsers] = useState<Map<string, string>>(new Map());
+   970→  const [elapsedMs, setElapsedMs] = useState(0);
+   971→  const [activeTab, setActiveTab] = useState<'chat' | 'moments' | 'attendees'>('chat');
+   972→  
+   973→  const messagesEndRef = useRef<HTMLDivElement>(null);
+   974→  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+   975→  
+   976→  // Connect to WebSocket
+   977→  useEffect(() => {
+   978→    if (!user) return;
+   979→    
+   980→    // مهم: استخدم path '/' و XTransformPort في query (per fullstack-dev skill)
+   981→    const newSocket = io('/', {
+   982→      transports: ['websocket'],
+   983→      query: { XTransformPort: '3003' },
+   984→    });
+   985→    
+   986→    setSocket(newSocket);
+   987→    
+   988→    newSocket.on('connect', () => {
+   989→      setConnected(true);
+   990→      newSocket.emit('gathering:join', {
+   991→        gatheringSlug: gathering.slug,
+   992→        userId: user.id,
+   993→        userName: user.nameLocalized.ar,
+   994→        avatarUrl: user.avatarUrl,
+   995→        isHost: user.membershipTier === 'HOST',
+   996→      });
+   997→    });
+   998→    
+   999→    newSocket.on('disconnect', () => setConnected(false));
+  1000→    
+  1001→    newSocket.on('gathering:state', (state: {
+  1002→      attendees: Attendee[];
+  1003→      messages: Message[];
+  1004→      moments: Moment[];
+  1005→    }) => {
+  1006→      setAttendees(state.attendees);
+  1007→      setMessages(state.messages);
+  1008→      setMoments(state.moments);
+  1009→    });
+  1010→    
+  1011→    newSocket.on('message:new', (msg: Message) => {
+  1012→      setMessages(prev => [...prev, msg]);
+  1013→    });
+  1014→    
+  1015→    newSocket.on('attendee:join', (attendee: Attendee) => {
+  1016→      setAttendees(prev => {
+  1017→        if (prev.find(a => a.userId === attendee.userId)) return prev;
+  1018→        return [...prev, attendee];
+  1019→      });
+  1020→    });
+  1021→    
+  1022→    newSocket.on('attendee:leave', ({ userId }: { userId: string }) => {
+  1023→      setAttendees(prev => prev.filter(a => a.userId !== userId));
+  1024→    });
+  1025→    
+  1026→    newSocket.on('moment:new', (moment: Moment) => {
+  1027→      setMoments(prev => [moment, ...prev]);
+  1028→    });
+  1029→    
+  1030→    newSocket.on('moment:hearted', ({ momentId, hearts }: { momentId: string; hearts: number }) => {
+  1031→      setMoments(prev => prev.map(m => m.id === momentId ? { ...m, hearts } : m));
+  1032→    });
+  1033→    
+  1034→    newSocket.on('typing:start', ({ userId, userName }: { userId: string; userName: string }) => {
+  1035→      setTypingUsers(prev => new Map(prev).set(userId, userName));
+  1036→    });
+  1037→    
+  1038→    newSocket.on('typing:stop', ({ userId }: { userId: string }) => {
+  1039→      setTypingUsers(prev => {
+  1040→        const next = new Map(prev);
+  1041→        next.delete(userId);
+  1042→        return next;
+  1043→      });
+  1044→    });
+  1045→    
+  1046→    return () => {
+  1047→      newSocket.close();
+  1048→    };
+  1049→  }, [user, gathering.slug]);
+  1050→  
+  1051→  // Scroll to bottom on new message
+  1052→  useEffect(() => {
+  1053→    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  1054→  }, [messages]);
+  1055→  
+  1056→  // Elapsed time counter
+  1057→  useEffect(() => {
+  1058→    const startTime = new Date(gathering.startDate).getTime();
+  1059→    const interval = setInterval(() => {
+  1060→      setElapsedMs(Date.now() - startTime);
+  1061→    }, 1000);
+  1062→    return () => clearInterval(interval);
+  1063→  }, [gathering.startDate]);
+  1064→  
+  1065→  const sendMessage = () => {
+  1066→    if (!input.trim() || !socket) return;
+  1067→    socket.emit('message:send', { content: input.trim() });
+  1068→    setInput('');
+  1069→    socket.emit('typing:stop');
+  1070→  };
+  1071→  
+  1072→  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  1073→    setInput(e.target.value);
+  1074→    if (!socket) return;
+  1075→    
+  1076→    socket.emit('typing:start');
+  1077→    
+  1078→    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+  1079→    typingTimeoutRef.current = setTimeout(() => {
+  1080→      socket.emit('typing:stop');
+  1081→    }, 2000);
+  1082→  };
+  1083→  
+  1084→  const createMoment = (type: 'highlight' | 'quote') => {
+  1085→    const content = type === 'highlight' 
+  1086→      ? prompt(t('momentHighlightPrompt'))
+  1087→      : prompt(t('momentQuotePrompt'));
+  1088→    
+  1089→    if (!content || !socket) return;
+  1090→    socket.emit('moment:create', { type, content });
+  1091→  };
+  1092→  
+  1093→  const heartMoment = (momentId: string) => {
+  1094→    if (socket) socket.emit('moment:heart', { momentId });
+  1095→  };
+  1096→  
+  1097→  const formatElapsed = (ms: number) => {
+  1098→    const totalSec = Math.floor(ms / 1000);
+  1099→    const h = Math.floor(totalSec / 3600);
+  1100→    const m = Math.floor((totalSec % 3600) / 60);
+  1101→    const s = totalSec % 60;
+  1102→    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  1103→  };
+  1104→  
+  1105→  return (
+  1106→    <div className="container py-6 max-w-6xl">
+  1107→      {/* Header */}
+  1108→      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+  1109→        <div>
+  1110→          <Link href={`/gatherings/${gathering.slug}`} className="text-xs text-stone hover:text-clay mb-1 inline-block">
+  1111→            ← {t('backToGathering')}
+  1112→          </Link>
+  1113→          <h1 className="font-display text-2xl md:text-3xl">{localized(gathering.title)}</h1>
+  1114→          <div className="flex flex-wrap items-center gap-3 mt-2 text-sm text-stone">
+  1115→            <span className={cn('flex items-center gap-1.5', connected ? 'text-success' : 'text-stone')}>
+  1116→              <span className={cn('size-2 rounded-full', connected ? 'bg-success animate-pulse' : 'bg-stone')} />
+  1117→              {connected ? t('live') : t('connecting')}
+  1118→            </span>
+  1119→            <span className="flex items-center gap-1.5">
+  1120→              <Clock className="size-3.5" />
+  1121→              <span className="tabular">{formatElapsed(elapsedMs)}</span>
+  1122→            </span>
+  1123→            <span className="flex items-center gap-1.5">
+  1124→              <Users className="size-3.5" />
+  1125→              {attendees.length} {t('hereNow')}
+  1126→            </span>
+  1127→          </div>
+  1128→        </div>
+  1129→        <PrayerTimeBadge 
+  1130→          startDate={new Date(gathering.startDate)} 
+  1131→          endDate={new Date(gathering.endDate)} 
+  1132→          variant="compact" 
+  1133→        />
+  1134→      </div>
+  1135→      
+  1136→      {/* Tabs (native buttons) */}
+  1137→      <div className="inline-flex h-10 items-center justify-center rounded-lg bg-sand p-1 mb-4">
+  1138→        {[
+  1139→          { id: 'chat', label: t('chat'), icon: MessageSquare },
+  1140→          { id: 'moments', label: t('moments'), icon: Star },
+  1141→          { id: 'attendees', label: t('attendees'), icon: Users },
+  1142→        ].map(tab => {
+  1143→          const Icon = tab.icon;
+  1144→          return (
+  1145→            <button
+  1146→              key={tab.id}
+  1147→              onClick={() => setActiveTab(tab.id as any)}
+  1148→              className={cn(
+  1149→                'inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md transition-all',
+  1150→                activeTab === tab.id ? 'bg-paper text-ink shadow-sm' : 'text-stone hover:text-ink'
+  1151→              )}
+  1152→            >
+  1153→              <Icon className="size-3.5" />
+  1154→              {tab.label}
+  1155→            </button>
+  1156→          );
+  1157→        })}
+  1158→      </div>
+  1159→      
+  1160→      <div className="grid lg:grid-cols-[1fr_300px] gap-4">
+  1161→        {/* Main content */}
+  1162→        <div>
+  1163→          {activeTab === 'chat' && (
+  1164→            <Card className="flex flex-col h-[60vh]">
+  1165→              {/* Messages */}
+  1166→              <div className="flex-1 overflow-y-auto p-4 space-y-3">
+  1167→                {messages.map(msg => (
+  1168→                  <div key={msg.id} className={cn('flex gap-2', msg.isSystem && 'justify-center')}>
+  1169→                    {msg.isSystem ? (
+  1170→                      <p className="text-xs text-stone italic">{msg.content}</p>
+  1171→                    ) : (
+  1172→                      <>
+  1173→                        <Avatar className="size-8 flex-shrink-0">
+  1174→                          {msg.avatarUrl && <AvatarImage src={msg.avatarUrl} alt="" />}
+  1175→                          <AvatarFallback className="text-xs">{msg.userName.charAt(0)}</AvatarFallback>
+  1176→                        </Avatar>
+  1177→                        <div className="flex-1 min-w-0">
+  1178→                          <div className="flex items-baseline gap-2">
+  1179→                            <span className="text-sm font-medium">{msg.userName}</span>
+  1180→                            <span className="text-xs text-stone tabular">
+  1181→                              {new Date(msg.timestamp).toLocaleTimeString('ar', { hour: '2-digit', minute: '2-digit' })}
+  1182→                            </span>
+  1183→                          </div>
+  1184→                          <p className="text-sm text-ink/80 break-words">{msg.content}</p>
+  1185→                        </div>
+  1186→                      </>
+  1187→                    )}
+  1188→                  </div>
+  1189→                ))}
+  1190→                <div ref={messagesEndRef} />
+  1191→              </div>
+  1192→              
+  1193→              {/* Typing indicator */}
+  1194→              {typingUsers.size > 0 && (
+  1195→                <div className="px-4 pb-2 text-xs text-stone italic">
+  1196→                  {Array.from(typingUsers.values()).join('، ')} {t('typing')}
+  1197→                </div>
+  1198→              )}
+  1199→              
+  1200→              {/* Input */}
+  1201→              <div className="border-t border-stone/20 p-3 flex gap-2">
+  1202→                <Input
+  1203→                  value={input}
+  1204→                  onChange={handleInputChange}
+  1205→                  placeholder={t('messagePlaceholder')}
+  1206→                  onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
+  1207→                  disabled={!connected}
+  1208→                />
+  1209→                <Button onClick={sendMessage} disabled={!input.trim() || !connected} className="bg-clay hover:bg-clay/90 text-paper">
+  1210→                  <Send className="size-4" />
+  1211→                </Button>
+  1212→              </div>
+  1213→            </Card>
+  1214→          )}
+  1215→          
+  1216→          {activeTab === 'moments' && (
+  1217→            <div className="space-y-3">
+  1218→              <div className="flex gap-2">
+  1219→                <Button variant="outline" size="sm" onClick={() => createMoment('highlight')}>
+  1220→                  <Star className="size-3.5 me-1.5" />
+  1221→                  {t('addHighlight')}
+  1222→                </Button>
+  1223→                <Button variant="outline" size="sm" onClick={() => createMoment('quote')}>
+  1224→                  <Quote className="size-3.5 me-1.5" />
+  1225→                  {t('addQuote')}
+  1226→                </Button>
+  1227→              </div>
+  1228→              
+  1229→              {moments.length === 0 ? (
+  1230→                <Card className="p-8 text-center text-stone">
+  1231→                  <Star className="size-8 mx-auto mb-2 opacity-30" />
+  1232→                  <p className="text-sm">{t('noMomentsYet')}</p>
+  1233→                </Card>
+  1234→              ) : (
+  1235→                moments.map(moment => (
+  1236→                  <Card key={moment.id} className="p-4">
+  1237→                    <div className="flex items-start gap-3">
+  1238→                      <div className={cn(
+  1239→                        'size-10 rounded-full flex items-center justify-center flex-shrink-0',
+  1240→                        moment.type === 'highlight' ? 'bg-saffron/15 text-saffron' : 'bg-clay/15 text-clay'
+  1241→                      )}>
+  1242→                        {moment.type === 'highlight' ? <Star className="size-5" /> : <Quote className="size-5" />}
+  1243→                      </div>
+  1244→                      <div className="flex-1">
+  1245→                        <p className="text-sm font-medium mb-1">{moment.userName}</p>
+  1246→                        <p className={cn(
+  1247→                          'text-base',
+  1248→                          moment.type === 'quote' && 'italic font-display'
+  1249→                        )}>
+  1250→                          {moment.type === 'quote' ? `«${moment.content}»` : moment.content}
+  1251→                        </p>
+  1252→                        <div className="flex items-center justify-between mt-2">
+  1253→                          <span className="text-xs text-stone tabular">
+  1254→                            {new Date(moment.timestamp).toLocaleTimeString('ar', { hour: '2-digit', minute: '2-digit' })}
+  1255→                          </span>
+  1256→                          <button
+  1257→                            onClick={() => heartMoment(moment.id)}
+  1258→                            className="flex items-center gap-1 text-xs text-stone hover:text-clay transition-colors"
+  1259→                          >
+  1260→                            <Heart className="size-3.5" />
+  1261→                            <span className="tabular">{moment.hearts}</span>
+  1262→                          </button>
+  1263→                        </div>
+  1264→                      </div>
+  1265→                    </div>
+  1266→                  </Card>
+  1267→                ))
+  1268→              )}
+  1269→            </div>
+  1270→          )}
+  1271→          
+  1272→          {activeTab === 'attendees' && (
+  1273→            <Card className="p-4">
+  1274→              <h3 className="font-display text-lg mb-3">{t('whosHere')}</h3>
+  1275→              <div className="space-y-2">
+  1276→                {attendees.map(attendee => (
+  1277→                  <div key={attendee.userId} className="flex items-center gap-3 p-2 rounded-lg hover:bg-sand transition-colors">
+  1278→                    <div className="relative">
+  1279→                      <Avatar className="size-10">
+  1280→                        {attendee.avatarUrl && <AvatarImage src={attendee.avatarUrl} alt="" />}
+  1281→                        <AvatarFallback>{attendee.userName.charAt(0)}</AvatarFallback>
+  1282→                      </Avatar>
+  1283→                      <span className="absolute -bottom-0.5 -end-0.5 size-3 bg-success rounded-full ring-2 ring-paper" />
+  1284→                    </div>
+  1285→                    <div className="flex-1">
+  1286→                      <p className="text-sm font-medium flex items-center gap-1.5">
+  1287→                        {attendee.userName}
+  1288→                        {attendee.isHost && (
+  1289→                          <span className="text-xs px-1.5 py-0.5 bg-clay/15 text-clay rounded">{t('host')}</span>
+  1290→                        )}
+  1291→                      </p>
+  1292→                      <p className="text-xs text-stone">
+  1293→                        {t('joinedAgo', { time: Math.round((Date.now() - attendee.joinedAt) / 60000) })}
+  1294→                      </p>
+  1295→                    </div>
+  1296→                  </div>
+  1297→                ))}
+  1298→              </div>
+  1299→            </Card>
+  1300→          )}
+  1301→        </div>
+  1302→        
+  1303→        {/* Sidebar */}
+  1304→        <div className="space-y-4">
+  1305→          {/* Attendees preview */}
+  1306→          <Card className="p-4">
+  1307→            <div className="flex items-center gap-2 mb-3">
+  1308→              <Users className="size-4 text-teal" />
+  1309→              <h3 className="font-display text-sm">{t('attendeesCount', { count: attendees.length })}</h3>
+  1310→            </div>
+  1311→            <div className="flex flex-wrap gap-2">
+  1312→              {attendees.slice(0, 8).map(a => (
+  1313→                <Avatar key={a.userId} className="size-8 ring-2 ring-paper">
+  1314→                  {a.avatarUrl && <AvatarImage src={a.avatarUrl} alt="" />}
+  1315→                  <AvatarFallback className="text-xs">{a.userName.charAt(0)}</AvatarFallback>
+  1316→                </Avatar>
+  1317→              ))}
+  1318→            </div>
+  1319→          </Card>
+  1320→          
+  1321→          {/* Prayer reminder */}
+  1322→          <Card className="p-4 bg-sand/50">
+  1323→            <div className="flex items-center gap-2 mb-2">
+  1324→              <Sparkles className="size-4 text-clay" />
+  1325→              <h3 className="font-display text-sm">{t('prayerReminder')}</h3>
+  1326→            </div>
+  1327→            <p className="text-xs text-stone">{t('prayerReminderHint')}</p>
+  1328→          </Card>
+  1329→          
+  1330→          {/* Quick actions */}
+  1331→          <Card className="p-4">
+  1332→            <h3 className="font-display text-sm mb-3">{t('quickActions')}</h3>
+  1333→            <div className="space-y-2">
+  1334→              <Link href={`/gatherings/${gathering.slug}`} className="block text-xs text-teal hover:underline">
+  1335→                ← {t('backToGathering')}
+  1336→              </Link>
+  1337→            </div>
+  1338→          </Card>
+  1339→        </div>
+  1340→      </div>
+  1341→    </div>
+  1342→  );
+  1343→}
+  1344→```
+  1345→
+  1346→### تثبيت socket.io-client
+  1347→
+  1348→في `package.json` الرئيسي، تأكّد من أن `socket.io-client` مثبّت:
+  1349→
+  1350→```bash
+  1351→bun add socket.io-client
+  1352→```
+  1353→
+  1354→---
+  1355→
+  1356→## 🔗 تحديث Gathering Detail
+  1357→
+  1358→في `src/app/[locale]/gatherings/[slug]/page.tsx`، أضف زر "دخول اللمة المباشرة" في حالة الـ gathering قادمة/جارية:
+  1359→
+  1360→```tsx
+  1361→// إذا الـ gathering قادمة خلال 24 ساعة أو جارية الآن، اعرض زر "Live"
+  1362→const now = new Date();
+  1363→const startTime = new Date(gathering.startDate);
+  1364→const endTime = new Date(gathering.endDate);
+  1365→const isLive = now >= startTime && now <= endTime;
+  1366→const isUpcoming = startTime > now && startTime.getTime() - now.getTime() < 24 * 60 * 60 * 1000;
+  1367→
+  1368→{(isLive || isUpcoming) && (
+  1369→  <Button asChild className="bg-success hover:bg-success/90 text-paper">
+  1370→    <Link href={`/gatherings/${gathering.slug}/live`}>
+  1371→      <span className="size-2 bg-paper rounded-full animate-pulse me-2" />
+  1372→      {isLive ? t('enterLiveNow') : t('enterLiveEarly')}
+  1373→    </Link>
+  1374→  </Button>
+  1375→)}
+  1376→```
+  1377→
+  1378→ولأغراض الـ demo، **أضف زر "تجربة الـ Live Companion"** يظهر دائماً للّمات القادمة:
+  1379→
+  1380→```tsx
+  1381→<Button asChild variant="outline" className="border-success text-success hover:bg-success/10">
+  1382→  <Link href={`/gatherings/${gathering.slug}/live`}>
+  1383→    <Sparkles className="size-4 me-2" />
+  1384→    {t('tryLiveDemo')}
+  1385→  </Link>
+  1386→</Button>
+  1387→```
+  1388→
+  1389→---
+  1390→
+  1391→## 📊 إضافة مفاتيح الترجمة
+  1392→
+  1393→أضف لـ `messages/{ar,en}.json`:
+  1394→
+  1395→```json
+  1396→{
+  1397→  "live": {
+  1398→    "title": "الرفيق اللحظي" / "Live Companion",
+  1399→    "backToGathering": "العودة لللمة" / "Back to gathering",
+  1400→    "live": "مباشر" / "Live",
+  1401→    "connecting": "جارٍ الاتصال..." / "Connecting...",
+  1402→    "hereNow": "هنا الآن" / "here now",
+  1403→    "chat": "المحادثة" / "Chat",
+  1404→    "moments": "لحظات" / "Moments",
+  1405→    "attendees": "الحاضرون" / "Attendees",
+  1406→    "messagePlaceholder": "اكتب رسالة..." / "Type a message...",
+  1407→    "typing": "يكتب..." / "typing...",
+  1408→    "addHighlight": "أضف لحظة مميزة" / "Add highlight",
+  1409→    "addQuote": "أضف اقتباساً" / "Add quote",
+  1410→    "momentHighlightPrompt": "صف اللحظة المميزة..." / "Describe the highlight moment...",
+  1411→    "momentQuotePrompt": "اكتب الاقتباس..." / "Type the quote...",
+  1412→    "noMomentsYet": "لا توجد لحظات بعد. كن أول من يضيف!" / "No moments yet. Be the first!",
+  1413→    "whosHere": "من هنا الآن" / "Who's here",
+  1414→    "host": "صاحب التجمع" / "Host",
+  1415→    "joinedAgo": "انضم قبل {time} دقيقة" / "Joined {time} min ago",
+  1416→    "attendeesCount": "{count} حاضر" / "{count} attending",
+  1417→    "prayerReminder": "تذكير الصلاة" / "Prayer reminder",
+  1418→    "prayerReminderHint": "سنذكّرك قبل 10 دقائق من كل صلاة" / "We'll remind you 10 min before each prayer",
+  1419→    "quickActions": "إجراءات سريعة" / "Quick actions",
+  1420→    "enterLiveNow": "ادخل اللمة المباشرة" / "Enter live gathering",
+  1421→    "enterLiveEarly": "ادخل مبكراً" / "Enter early",
+  1422→    "tryLiveDemo": "تجربة الرفيق اللحظي" / "Try Live Companion"
+  1423→  }
+  1424→}
+  1425→```
+  1426→
+  1427→---
+  1428→
+  1429→## 📋 قائمة التحقق النهائية (Must Pass)
+  1430→
+  1431→### Part 1: 2A/2B details
+  1432→- [ ] ApplicationCTA يعرض MatchScoreRing للمسجّلين
+  1433→- [ ] CapacityCard يعرض approved/pending/waitlisted + avatar grid + progress bar
+  1434→- [ ] LocationCard يعرض SVG map (أو "مخفي حتى الموافقة")
+  1435→- [ ] ApplyForm 4 خطوات كاملة مع validation
+  1436→- [ ] Cancel confirmation dialog أنيق (لا native confirm)
+  1437→- [ ] NotificationBell في SiteHeader للـ hosts
+  1438→- [ ] ApplicationDetailDialog يعرض كل التفاصيل + timeline
+  1439→
+  1440→### Part 2: Live Companion
+  1441→- [ ] `mini-services/live-companion/` منشأ مع package.json و index.ts
+  1442→- [ ] socket.io مثبّت في mini-service
+  1443→- [ ] socket.io-client مثبّت في main project
+  1444→- [ ] mini-service يعمل على port 3003 (تحقّق بـ `curl http://localhost:3003`)
+  1445→- [ ] `/[locale]/gatherings/[slug]/live` يفتح LiveCompanion
+  1446→- [ ] LiveCompanion يتصل بـ WebSocket عبر `io('/', { query: { XTransformPort: '3003' } })`
+  1447→- [ ] Chat يعمل: إرسال + استقبال + system messages
+  1448→- [ ] Mock bots يتفاعلون (45-90s interval)
+  1449→- [ ] Moments تعمل: highlight + quote + heart
+  1450→- [ ] Attendees tab يعرض الحاضرين مع presence indicator
+  1451→- [ ] Time counter يعمل (HH:MM:SS)
+  1452→- [ ] PrayerTimeBadge يظهر في الـ header
+  1453→- [ ] Native tabs تعمل (chat/moments/attendees)
+  1454→- [ ] Typing indicator يعمل
+  1455→- [ ] RTL/LTR
+  1456→- [ ] Mobile responsive
+  1457→
+  1458→### Quality
+  1459→- [ ] `bun run lint` — 0 errors, 0 warnings
+  1460→- [ ] dev server يعمل، `dev.log` نظيف
+  1461→- [ ] mini-service يعمل بدون crash
+  1462→- [ ] لا hardcoded strings
+  1463→- [ ] لا `any` types
+  1464→- [ ] استخدم logical properties
+  1465→
+  1466→### Agent Browser E2E
+  1467→- [ ] تسجيل دخول كنورة
+  1468→- [ ] فتح أي gathering detail
+  1469→- [ ] النقر على "تجربة الرفيق اللحظي"
+  1470→- [ ] تحقّق من ظهور الـ Live Companion
+  1471→- [ ] تحقّق من ظهور mock attendees (2) + mock messages (3) + 1 moment
+  1472→- [ ] إرسال رسالة → تظهر فوراً
+  1473→- [ ] التبديل لـ moments tab → إنشاء highlight
+  1474→- [ ] التبديل لـ attendees tab → رؤية الـ presence
+  1475→- [ ] انتظار 60-90 ثانية → mock bot يرسل رسالة
+  1476→- [ ] تسجيل خروج + إعادة دخول → الـ messages ما زالت موجودة (in-memory state)
+  1477→
+  1478→---
+  1479→
+  1480→## 📝 التقرير النهائي المطلوب
+  1481→
+  1482→1. **Audit Part 1**: قائمة بكل تفاصيل 2A/2B التي أُكملت
+  1483→2. قائمة ملفات mini-service
+  1484→3. لقطة `bun run lint`
+  1485→4. لقطة `curl http://localhost:3003` (تحقّق أن mini-service يعمل)
+  1486→5. لقطة `curl /api/v1/health`
+  1487→6. سيناريو اختبار كامل (step by step) مع لقطات شاشة:
+  1488→   - ApplicationCTA مع MatchScoreRing (لنورة)
+  1489→   - CapacityCard مع avatar grid
+  1490→   - LocationCard مع SVG map
+  1491→   - NotificationBell مع unread count
+  1492→   - Live Companion: chat مع mock bots
+  1493→   - Live Companion: moments إنشاء + heart
+  1494→   - Live Companion: attendees presence
+  1495→   - Live Companion: time counter (HH:MM:SS)
+  1496→7. أي قرارات معمارية / انحرافات عن المواصفات
+  1497→8. ما الذي يحتاجه Phase 5 (PWA + Notifications + Polish) ليعمل فوق هذا
+  1498→
+  1499→---
+  1500→
+  1501→## ⚠️ قواعد صارمة
+  1502→
+  1503→1. **mini-service منفصل** في `mini-services/live-companion/` مع package.json و port 3003
+  1504→2. **`io('/', { query: { XTransformPort: '3003' } })`** للاتصال من frontend (per fullstack-dev skill)
+  1505→3. **لا تستخدم `io('http://localhost:3003')`** أبداً
+  1506→4. **Path دائماً `/`** في socket.io config
+  1507→5. **Native buttons** بدل Radix Tabs
+  1508→6. **Native checkboxes** بدل Radix Checkbox
+  1509→7. **z-ai-web-dev-sdk للـ backend فقط**
+  1510→8. **كل النصوص في `messages/*.json`**
+  1511→9. **استخدم logical properties**
+  1512→10. **TypeScript strict** — لا `any`
+  1513→11. **socket.io للـ backend, socket.io-client للـ frontend**
+  1514→12. **Mock bots** يضيفون realism للـ demo
+  1515→13. **احترم الـ file structure**: `src/components/lamma/live/`, `mini-services/live-companion/`
+  1516→14. **اكتب worklog في `/home/z/my-project/worklog.md`** (append)
+  1517→15. **اقرأ `dev.log` بعد كل تغيير كبير**
+  1518→16. **ابدأ Agent Browser قبل الإبلاغ بالانتهاء**
+  1519→17. **تأكّد من أن mini-service يعمل قبل اختبار الـ Live Companion**
+  1520→
+  1521→ابدأ الآن.
+  1522→```
+  1523→
+  1524→---
+  1525→

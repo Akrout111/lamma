@@ -7,6 +7,9 @@ import { Logo } from './Logo';
 import { LocaleSwitcher } from './LocaleSwitcher';
 import { AccountDropdown } from '@/components/lamma/auth/AccountDropdown';
 import { LoginDialog } from '@/components/lamma/auth/LoginDialog';
+import { NotificationBell } from '@/components/lamma/auth/NotificationBell';
+import { useAuthStore } from '@/lib/auth-store';
+import { isUserHost } from '@/lib/host-helpers';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { mainNav } from '@/data/navigation';
@@ -17,6 +20,7 @@ export function SiteHeader() {
   const tAuth = useTranslations('auth');
   const [open, setOpen] = useState(false);
   const [loginOpen, setLoginOpen] = useState(false);
+  const { user, isAuthenticated, hasHydrated } = useAuthStore();
 
   useEffect(() => {
     const handler = () => setLoginOpen(true);
@@ -38,6 +42,7 @@ export function SiteHeader() {
           </nav>
           <div className="flex items-center gap-1">
             <LocaleSwitcher />
+            {hasHydrated && isAuthenticated && user && isUserHost(user.id) && <NotificationBell />}
             <AccountDropdown />
             <Sheet open={open} onOpenChange={setOpen}>
               <SheetTrigger asChild><Button variant="ghost" size="icon" className="md:hidden" aria-label={t('openMenu')}><Menu className="h-5 w-5" /></Button></SheetTrigger>

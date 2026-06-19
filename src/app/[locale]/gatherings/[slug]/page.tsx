@@ -8,6 +8,10 @@ import { TopicPill } from '@/components/lamma/TopicPill';
 import { PrayerTimeBadge } from '@/components/lamma/PrayerTimeBadge';
 import { GatheringCard } from '@/components/lamma/GatheringCard';
 import { SimilarAttendeesPreview } from '@/components/lamma/matching/SimilarAttendeesPreview';
+import { ApplicationCTA } from '@/components/lamma/gatherings/detail/ApplicationCTA';
+import { CapacityCard } from '@/components/lamma/gatherings/detail/CapacityCard';
+import { LocationCard } from '@/components/lamma/gatherings/detail/LocationCard';
+import { DetailHostCard } from '@/components/lamma/gatherings/detail/DetailHostCard';
 import { gatherings, gatheringsBySlug } from '@/data/gatherings';
 import { getTopic } from '@/data/topics';
 import { getHost } from '@/data/hosts';
@@ -60,12 +64,14 @@ export default async function GatheringDetailPage({ params }: Props) {
             {related.length > 0 && (<section className="mt-12"><h2 className="mb-4 font-display text-2xl font-semibold text-ink">{t('related')}</h2><div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">{related.map((g) => <GatheringCard key={g.slug} gathering={g} />)}</div></section>)}
           </div>
           <aside className="space-y-6 lg:col-span-4">
-            {host && (<Link href={`/hosts/${host.handle.replace('@','')}`} className="block rounded-2xl bg-card p-6 ring-1 ring-border/60 transition-all hover:shadow-[var(--shadow-card)]"><div className="flex items-center gap-4"><div className="relative size-16 shrink-0 overflow-hidden rounded-full bg-secondary"><Image src={host.avatarUrl} alt="" fill sizes="64px" className="object-cover" /></div><div><h3 className="font-display text-lg font-semibold text-ink">{host.displayName[l]}</h3><p className="text-xs text-stone">{host.handle}</p></div></div></Link>)}
-            <section className="sticky top-24 rounded-2xl border border-clay/20 bg-paper p-6 shadow-[var(--shadow-soft)]">
-              <div className="mb-4 flex items-center justify-between"><div><p className="text-xs uppercase tracking-wider text-stone">{t('price')}</p><p className="font-display text-3xl font-semibold tabular text-ink">{priceLabel}</p></div></div>
-              <Link href={`/gatherings/apply/${gathering.slug}`} className="block w-full rounded-lg bg-clay py-3 text-center text-sm font-medium text-primary-foreground transition-colors hover:bg-clay/90">{t('applyCta')}</Link>
-              <p className="mt-3 text-center text-xs text-stone">{t('applyNote')}</p>
-            </section>
+            {host && <DetailHostCard host={host} />}
+            <ApplicationCTA gathering={gathering} />
+            <CapacityCard gathering={gathering} />
+            <LocationCard gathering={gathering} />
+            <Link href={`/gatherings/${gathering.slug}/live`} className="flex items-center justify-center gap-2 rounded-xl border border-success/30 bg-success/5 px-4 py-3 text-sm font-medium text-success transition-colors hover:bg-success/10">
+              <span className="size-2 animate-pulse rounded-full bg-success" />
+              {locale === 'ar' ? 'تجربة الرفيق اللحظي' : 'Try Live Companion'}
+            </Link>
           </aside>
         </div>
       </Container>
